@@ -1,15 +1,17 @@
-use tokio::net::TcpStream;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt};
-use tokio::io::AsyncWriteExt;
-use tokio::io;
-use tokio::net::tcp::OwnedWriteHalf;
-
+use tokio::{
+    net::TcpStream,
+    io::{AsyncBufReadExt, AsyncReadExt},
+    io::AsyncWriteExt,
+    io,
+    net::tcp::OwnedWriteHalf
+};
 use futures::lock::Mutex;
-use std::sync::Arc;
-use std::io::stdin;
-use std::net::SocketAddr;
-use std::str::from_utf8;
-
+use std::{
+    sync::Arc,
+    io::stdin,
+    net::SocketAddr,
+    str::from_utf8
+};
 use bincode::{deserialize, serialize};
 use serde::{Deserialize, Serialize};
 
@@ -162,21 +164,9 @@ fn serialize_data(M: &Outgoing_Message) -> Vec<u8>{
 fn deserialize_data(data: Vec<u8>) -> Incoming_Message {
     return deserialize(&data).unwrap();
 }
-/*
-fn handle_message_received(C: &mut Client) -> Vec<u8> {
-    let mut buffer = [0; 4096];
-    match C.stream.try_read(&mut buffer){
-        Ok(0) => {}
-        Ok(recv_bytes) => {
-            println!("Received bytes: {}", recv_bytes);
-        }
-        Err(_e) => {}
-    };
-    return buffer.to_vec();
-}*/
 
 #[tokio::main]
-pub(crate) async fn main() -> io::Result<()> {
+async fn main() -> io::Result<()> {
     // Username input
 
     // TCP Stream creation
@@ -203,22 +193,3 @@ pub(crate) async fn main() -> io::Result<()> {
     }
     Ok(())
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

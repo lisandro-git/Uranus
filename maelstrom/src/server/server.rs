@@ -1,11 +1,15 @@
-use tokio::io::{AsyncReadExt, BufReader};
-use tokio::io::ReadBuf;
-use tokio::macros::support::poll_fn;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::io::AsyncWriteExt;
-use tokio::sync::broadcast;
-use tokio::sync::broadcast::Receiver;
-use tokio::sync::broadcast::Sender;
+extern crate core;
+
+use tokio::{
+    io::{AsyncReadExt, BufReader, Interest, ReadBuf, AsyncWriteExt},
+    macros::support::poll_fn,
+    net::{TcpListener, TcpStream},
+    sync::{
+        broadcast,
+        broadcast::Sender,
+        broadcast::Receiver
+    }
+};
 use std::io;
 use std::net::SocketAddr;
 use std::str::{EscapeDebug, from_utf8};
@@ -14,8 +18,8 @@ use serde::{Deserialize, Serialize};
 
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 4096;
-const IV_LEN: usize = 16;
 const USERNAME_LENGTH: usize = 10;
+const IV_LEN: usize = 16;
 
 #[derive(Debug)]
 struct Client {
@@ -23,8 +27,7 @@ struct Client {
     ip_address: std::net::SocketAddr,
     authenticated: bool,
     connected: bool,
-    IM: Incoming_Message,
-    OM: Outgoing_Message,
+    M: Message,
 }
 impl Client {
     fn new(sock: TcpStream, address: SocketAddr) -> Client {
@@ -33,40 +36,23 @@ impl Client {
             ip_address: address,
             authenticated: false,
             connected: true,
-            IM: Incoming_Message::new(vec![], vec![]),
-            OM: Outgoing_Message::new(vec![], vec![]),
+            M: Message::new(vec![], vec![]),
         }
     }
     fn delete(&mut self) {
         //self.sock.shutdown(Shutdown::Both).unwrap();
-        self.IM.delete();
-        self.OM.delete();
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Outgoing_Message {
-    username: Vec<u8>,
-    data: Vec<u8>,
-}
-impl Outgoing_Message {
-    fn new(username: Vec<u8>, data: Vec<u8>) -> Outgoing_Message {
-        Outgoing_Message { username, data }
-    }
-    fn delete(&mut self) {
-        self.username.clear();
-        self.data.clear();
+        self.M.delete();
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Incoming_Message {
+struct Message {
     username: Vec<u8>,
     data: Vec<u8>,
 }
-impl Incoming_Message {
-    fn new(username: Vec<u8>, data: Vec<u8>) -> Incoming_Message {
-        Incoming_Message { username, data }
+impl Message {
+    fn new(username: Vec<u8>, data: Vec<u8>) -> Message {
+        Message { username, data }
     }
     fn delete(&mut self) {
         self.username.clear();
@@ -102,7 +88,7 @@ async fn handle_message_received(C: &mut Client) -> Vec<u8> {
         C.stream.readable().await;
         match C.stream.try_read(&mut buffer) {
             Ok(0) => {
-                println!("Client {} (username : {:?}) disconnected", C.ip_address, from_utf8(&C.IM.username).unwrap());
+                println!("Client {} (username : {:?}) disconnected", C.ip_address, from_utf8(&C.M.username).unwrap());
                 C.connected = false;
                 return vec![];
             }
@@ -123,11 +109,11 @@ async fn handle_message_received(C: &mut Client) -> Vec<u8> {
     };
 }
 
-fn serialize_data(OM: &Incoming_Message) -> Vec<u8>{
+fn serialize_data(OM: &Message) -> Vec<u8>{
     return serialize(&OM).unwrap();
 }
 
-fn deserialize_message(data: Vec<u8>) -> Incoming_Message {
+fn deserialize_message(data: Vec<u8>) -> Message {
     return deserialize(&data).unwrap();
 }
 
@@ -137,65 +123,59 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Client {
         ip_address: addr,
         authenticated: false,
         connected: true,
-        IM: Incoming_Message::new(vec![], vec![]),
-        OM: Outgoing_Message::new(vec![], vec![]),
+        M: Message::new(vec![], vec![]),
     };
     let username = handle_message_received(&mut C).await;
     if C.connected{
-        C.IM = deserialize_message(username);
+        C.M = deserialize_message(username);
     }
     return C;
 }
 
-async fn handle_message_from_client(mut C: Client, channel_snd: Sender<Incoming_Message>, mut channel_rcv: Receiver<Incoming_Message>, ) -> Client{
-
+async fn handle_message_from_client(mut C: Client, channel_snd: Sender<Message>, mut channel_rcv: Receiver<Message>, ) -> Client {
     let mut buffer: [u8; 4096] = [0; MSG_SIZE];
+
     loop{
-        //println!("loop");
+        match C.stream.try_read(&mut buffer) {
+            Ok(n) if n == 0 => {
+                println!("Client {} (username : {:?}) disconnected", C.ip_address, from_utf8(&C.M.username).unwrap());
+                C.connected = false;
+                return C;
+            },
+            Ok(recv_bytes) => {
+                println!("Received bytes: {}", recv_bytes);
+                C.M.data = remove_trailing_zeros(buffer.to_vec());
+                channel_snd.send(C.M.clone()).unwrap();
+                buffer.iter_mut().for_each(|x| *x = 0); // reset buffer
+            },
+            Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
+                // edode : Avoid returning an empty vector (empty Incoming_Message)
+                //println!("Error: {}", err);
+                continue;
+            },
+            Err(err) => {
+                println!("Error: {}", err);
+            },
+        };
+
         match channel_rcv.try_recv() {
             Ok(mut received_data) => {
                 println!("Received data from channel : {:?}, from : {:?}", received_data, C.ip_address);
                 //sending the data to other users
                 println!("Sending data to {}", C.ip_address);
+
                 C.stream.write(&serialize_data(&received_data)).await.unwrap();
-
             },
-            Err(_) => {
-
-            }
-        }
-
-        match C.stream.try_read(&mut buffer) {
-            Ok(0) => {
-                println!("Client {} (username : {:?}) disconnected", C.ip_address, from_utf8(&C.IM.username).unwrap());
-                C.connected = false;
-                return C;
-            }
-            Ok(recv_bytes) => {
-                println!("Received bytes: {}", recv_bytes);
-                C.IM.data = remove_trailing_zeros(buffer.to_vec());
-                channel_snd.send(C.IM.clone()).unwrap();
-                buffer.iter_mut().for_each(|x| *x = 0); // reset buffer
-            }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                // edode : Avoid returning an empty vector (empty Incoming_Message)
-                //println!("Error: {}", e);
-                //continue;
-            }
-            Err(e) => {
-                println!("Error: {}", e);
-            }
+            Err(err) => {
+                // edode : empty channel
+                //println!("Could not receive data : {}", err);
+            },
         };
     }
 }
 
-fn broadcast_message(channel_snd: Sender<Incoming_Message>, OM: &Outgoing_Message) {
-    let msg = Incoming_Message::new(OM.username.clone(), OM.data.clone());
-    channel_snd.send(msg).unwrap();
-}
-
 #[tokio::main]
-pub(crate) async fn main() -> io::Result<()> {
+pub async fn main() -> io::Result<()> {
     let listener = TcpListener::bind(LOCAL).await?;
     let (channel_snd, mut _chann_rcv)  = broadcast::channel(64);
 
