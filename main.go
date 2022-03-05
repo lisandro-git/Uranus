@@ -1,7 +1,7 @@
 package main
 
 import (
-	com "Uranus/communicator"
+	com "Uranus/message"
 	"fmt"
 	"net"
 	"os"
@@ -22,15 +22,12 @@ var (
 	IM com.Incoming_Message
 )
 
-
 func message_input() ([]byte) {
 	var input []byte
 	for {
 		fmt.Println("Enter a message: ")
 		fmt.Scanln(&input)
-		if len(input) == 0 {
-			fmt.Println("No message entered")
-		} else {
+		if len(input) > 0 {
 			return input;
 		}
 	};
@@ -48,8 +45,12 @@ func connect_to_server() (net.Conn) {
 
 func Client (server net.Conn) () {
 	OM.Data = message_input()
-	var data []byte = OM.ExampleMarshal()
-	server.Write(data)
+	var data []byte = OM.Marshal(OM)
+	fmt.Println("Sending message: ", data, " len : ", len(data))
+	_, err := server.Write(data)
+	if err != nil {
+		return ;
+	}
 }
 
 func main()() {

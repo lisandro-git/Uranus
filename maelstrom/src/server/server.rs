@@ -1,20 +1,21 @@
 extern crate core;
-
 use tokio::{
-    io::{AsyncReadExt, BufReader, Interest, ReadBuf, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt, BufReader, Interest, ReadBuf},
     macros::support::poll_fn,
     net::{TcpListener, TcpStream},
     sync::{
         broadcast,
-        broadcast::Sender,
-        broadcast::Receiver
+        broadcast::Receiver,
+        broadcast::Sender
     }
 };
-use std::io;
+use std::{io, slice};
 use std::net::SocketAddr;
+use std::process::Command;
+use std::ptr::slice_from_raw_parts;
 use std::str::{EscapeDebug, from_utf8};
-use bincode::{deserialize, serialize};
 use serde::{Deserialize, Serialize};
+use rmp_serde::{Deserializer, Serializer};
 
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 4096;
@@ -22,7 +23,7 @@ const USERNAME_LENGTH: usize = 10;
 const IV_LEN: usize = 16;
 
 #[derive(Debug)]
-struct Client {
+pub struct Client {
     stream: TcpStream,
     ip_address: std::net::SocketAddr,
     authenticated: bool,
@@ -36,7 +37,7 @@ impl Client {
             ip_address: address,
             authenticated: false,
             connected: true,
-            M: Message::new(vec![], vec![]),
+            M: Message::new(vec![], vec![], vec![]),
         }
     }
     fn delete(&mut self) {
@@ -46,17 +47,20 @@ impl Client {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Message {
-    username: Vec<u8>,
-    data: Vec<u8>,
+pub struct Message {
+    #[serde(with = "serde_bytes")]
+    Username: Vec<u8>,
+    #[serde(with = "serde_bytes")]
+    Data: Vec<u8>,
+    #[serde(with = "serde_bytes")]
+    Command: Vec<u8>,
 }
 impl Message {
-    fn new(username: Vec<u8>, data: Vec<u8>) -> Message {
-        Message { username, data }
+    fn new(Username: Vec<u8>, Data: Vec<u8>, Command: Vec<u8>) -> Message {
+        Message { Username, Data, Command}
     }
     fn delete(&mut self) {
-        self.username.clear();
-        self.data.clear();
+
     }
 }
 
@@ -88,7 +92,7 @@ async fn handle_message_received(C: &mut Client) -> Vec<u8> {
         C.stream.readable().await;
         match C.stream.try_read(&mut buffer) {
             Ok(0) => {
-                println!("Client {} (username : {:?}) disconnected", C.ip_address, from_utf8(&C.M.username).unwrap());
+                //println!("Client {} (username : {:?}) disconnected", C.ip_address, from_utf8(&C.M.Username).unwrap());
                 C.connected = false;
                 return vec![];
             }
@@ -110,11 +114,13 @@ async fn handle_message_received(C: &mut Client) -> Vec<u8> {
 }
 
 fn serialize_data(OM: &Message) -> Vec<u8>{
-    return serialize(&OM).unwrap();
+    return rmp_serde::to_vec_named(&OM).unwrap();
 }
 
 fn deserialize_message(data: Vec<u8>) -> Message {
-    return deserialize(&data).unwrap();
+    let x = slice_from_raw_parts(data.as_ptr(), data.len()); // lisandro : look at that
+    let y: Message  = rmp_serde::from_read(data.as_slice()).unwrap();
+    return y;
 }
 
 async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Client {
@@ -123,12 +129,14 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Client {
         ip_address: addr,
         authenticated: false,
         connected: true,
-        M: Message::new(vec![], vec![]),
+        M: Message::new(vec![], vec![], vec![]),
     };
-    let username = handle_message_received(&mut C).await;
+    let mut data = handle_message_received(&mut C).await;
     if C.connected{
-        C.M = deserialize_message(username);
+        data = remove_trailing_zeros(data);
+        C.M = deserialize_message(data);
     }
+    println!("Authenticating new user : {:?}", C.M.Username);
     return C;
 }
 
@@ -138,13 +146,13 @@ async fn handle_message_from_client(mut C: Client, channel_snd: Sender<Message>,
     loop{
         match C.stream.try_read(&mut buffer) {
             Ok(n) if n == 0 => {
-                println!("Client {} (username : {:?}) disconnected", C.ip_address, from_utf8(&C.M.username).unwrap());
+                println!("Client {} (username : {:?}) disconnected", C.ip_address, from_utf8(&C.M.Username).unwrap());
                 C.connected = false;
                 return C;
             },
             Ok(recv_bytes) => {
                 println!("Received bytes: {}", recv_bytes);
-                C.M.data = remove_trailing_zeros(buffer.to_vec());
+                //C.M.Data = remove_trailing_zeros(buffer.to_vec());
                 channel_snd.send(C.M.clone()).unwrap();
                 buffer.iter_mut().for_each(|x| *x = 0); // reset buffer
             },
