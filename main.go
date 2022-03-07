@@ -44,19 +44,22 @@ func connect_to_server() (net.Conn) {
 }
 
 func Client (server net.Conn) () {
-	OM.Data = message_input("data")
-	
-	var enc_data = message.Encrypt_data(OM.Marshal(OM))
-	_, err := server.Write(enc_data)
-	if err != nil {
-		return;
-	} else {
-		fmt.Printf("Data sent : %d", enc_data)
+	for {
+		OM.Data = message_input("data")
+		
+		var enc_data = message.Encrypt_data(OM.Marshal(OM))
+		fmt.Printf("Encrypted data: %d\n", len(enc_data))
+		
+		bytes, err := server.Write(enc_data)
+		if err != nil {
+			return;
+		} else {
+			fmt.Printf("Data sent : %d; %d", enc_data, bytes)
+		}
 	}
 }
 
 func main()() {
-
 	var server net.Conn = connect_to_server()
 	defer server.Close()
 
@@ -65,11 +68,7 @@ func main()() {
 	OM.Command  = message_input("command")
 
 	wg.Add(1)
-	go func() {
-		for {
-			Client(server)
-		}
-	}()
+	go Client(server)
 	wg.Wait();
 }
 

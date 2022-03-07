@@ -19,6 +19,7 @@ use std::{
 };
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
+use crate::server::encryption;
 
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 4096;
@@ -132,10 +133,12 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Client {
         connected: true,
         M: Message::new(vec![], vec![], vec![]),
     };
-    let mut data = handle_message_received(&mut C).await;
+    let data = handle_message_received(&mut C).await;
     if C.connected{
-        data = remove_trailing_zeros(data);
-        C.M = deserialize_message(data);
+
+        let decrypted_data =  encryption::decrypt_message(remove_trailing_zeros(data));
+        let encrypted_data = remove_trailing_zeros(decrypted_data);
+        C.M = deserialize_message(encrypted_data);
     }
     println!("Authenticating new user : {:?}", C.M.Username);
     return C;
