@@ -7,7 +7,8 @@ import (
 
 type Outgoing_Message struct {
 	Username []byte
-	Data []byte
+	Data     []byte
+	Command  []byte
 }
 
 func (OM Outgoing_Message) Marshal(message Outgoing_Message) ([]byte) {
@@ -19,4 +20,3 @@ func (OM Outgoing_Message) Marshal(message Outgoing_Message) ([]byte) {
 	}
 	return buf.Bytes()
 }
-

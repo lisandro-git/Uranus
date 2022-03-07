@@ -1,7 +1,7 @@
 package main
 
 import (
-	com "Uranus/message"
+	"Uranus/message"
 	"fmt"
 	"net"
 	"os"
@@ -18,14 +18,14 @@ const (
 
 var (
 	wg sync.WaitGroup
-	OM com.Outgoing_Message
-	IM com.Incoming_Message
+	OM message.Outgoing_Message
+	IM message.Incoming_Message
 )
 
-func message_input() ([]byte) {
+func message_input(m string) ([]byte) {
 	var input []byte
 	for {
-		fmt.Println("Enter a message: ")
+		fmt.Printf("%s -> ", m)
 		fmt.Scanln(&input)
 		if len(input) > 0 {
 			return input;
@@ -44,12 +44,14 @@ func connect_to_server() (net.Conn) {
 }
 
 func Client (server net.Conn) () {
-	OM.Data = message_input()
-	var data []byte = OM.Marshal(OM)
-	fmt.Println("Sending message: ", data, " len : ", len(data))
-	_, err := server.Write(data)
+	OM.Data = message_input("data")
+	
+	var enc_data = message.Encrypt_data(OM.Marshal(OM))
+	_, err := server.Write(enc_data)
 	if err != nil {
-		return ;
+		return;
+	} else {
+		fmt.Printf("Data sent : %d", enc_data)
 	}
 }
 
@@ -59,10 +61,15 @@ func main()() {
 	defer server.Close()
 
 	// declare variable from Messages.go
-	OM.Username = message_input()
+	OM.Username = message_input("username")
+	OM.Command  = message_input("command")
 
 	wg.Add(1)
-	go Client(server)
+	go func() {
+		for {
+			Client(server)
+		}
+	}()
 	wg.Wait();
 }
 

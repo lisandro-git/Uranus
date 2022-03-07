@@ -9,11 +9,14 @@ use tokio::{
         broadcast::Sender
     }
 };
-use std::{io, slice};
-use std::net::SocketAddr;
-use std::process::Command;
-use std::ptr::slice_from_raw_parts;
-use std::str::{EscapeDebug, from_utf8};
+use std::{
+    io,
+    slice,
+    net::SocketAddr,
+    process::Command,
+    ptr::slice_from_raw_parts,
+    str::{EscapeDebug, from_utf8}
+};
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 
@@ -118,9 +121,7 @@ fn serialize_data(OM: &Message) -> Vec<u8>{
 }
 
 fn deserialize_message(data: Vec<u8>) -> Message {
-    let x = slice_from_raw_parts(data.as_ptr(), data.len()); // lisandro : look at that
-    let y: Message  = rmp_serde::from_read(data.as_slice()).unwrap();
-    return y;
+    return rmp_serde::from_read(data.as_slice()).unwrap();
 }
 
 async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Client {
