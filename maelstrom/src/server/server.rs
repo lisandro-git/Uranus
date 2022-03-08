@@ -145,16 +145,6 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Client {
     return C;
 }
 
-// send to everyone except the sender
-async fn send_to_all_except(C: &mut Client, msg: Vec<u8>) {
-    let mut clients = CLIENT_LIST.lock().unwrap();
-    for client in clients.iter_mut() {
-        if client.ip_address != C.ip_address {
-            client.stream.write_all(&msg).await.unwrap();
-        }
-    }
-}
-
 async fn handle_message_from_client(mut C: Client, channel_snd: Sender<Message>, mut channel_rcv: Receiver<Message>, ) -> Client {
     let mut buffer: [u8; 4096] = [0; MSG_SIZE];
 
@@ -167,7 +157,7 @@ async fn handle_message_from_client(mut C: Client, channel_snd: Sender<Message>,
             },
             Ok(recv_bytes) => {
                 println!("Received bytes: {}", recv_bytes);
-                let decrypted_data =  encryption::decrypt_message(remove_trailing_zeros(buffer.to_vec()));
+                let decrypted_data = encryption::decrypt_message(remove_trailing_zeros(buffer.to_vec()));
                 let encrypted_data = remove_trailing_zeros(decrypted_data);
                 C.M = deserialize_message(encrypted_data);
                 channel_snd.send(C.M.clone()).unwrap();
