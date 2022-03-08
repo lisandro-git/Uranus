@@ -7,7 +7,7 @@ fn read_public_key() -> Rsa<Public> {
     let mut key_file = File::open("../public.key").unwrap();
     let mut file_content = String::new();
     key_file.read_to_string(&mut file_content);
-    
+
     return Rsa::public_key_from_pem(&file_content.as_bytes()).unwrap();
 }
 

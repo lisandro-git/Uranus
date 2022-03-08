@@ -2,7 +2,6 @@ package message
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/vmihailenco/msgpack"
 )
 
@@ -19,6 +18,5 @@ func (OM Outgoing_Message) Marshal() ([]byte) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Outgoing_Message marshalled " + buf.String())
 	return buf.Bytes()
 }

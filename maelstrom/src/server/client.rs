@@ -12,8 +12,8 @@ use std::{
     net::SocketAddr,
     str::from_utf8
 };
-use bincode::{deserialize, serialize};
 use serde::{Deserialize, Serialize};
+use serde_bytes::{deserialize, serialize};
 
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 4096;

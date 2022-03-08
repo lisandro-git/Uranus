@@ -44,9 +44,9 @@ impl Client {
             M: Message::new(vec![], vec![], vec![]),
         }
     }
-    fn delete(&mut self) {
+    fn clear(&mut self) {
         //self.sock.shutdown(Shutdown::Both).unwrap();
-        self.M.delete();
+        self.M.clear();
     }
 }
 
@@ -63,8 +63,10 @@ impl Message {
     fn new(Username: Vec<u8>, Data: Vec<u8>, Command: Vec<u8>) -> Message {
         Message { Username, Data, Command}
     }
-    fn delete(&mut self) {
-
+    fn clear(&mut self) {
+        //self.Username.clear();
+        self.Data.clear();
+        self.Command.clear();
     }
 }
 
@@ -134,14 +136,23 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Client {
         M: Message::new(vec![], vec![], vec![]),
     };
     let data = handle_message_received(&mut C).await;
-    if C.connected{
-
+    if C.connected {
         let decrypted_data =  encryption::decrypt_message(remove_trailing_zeros(data));
         let encrypted_data = remove_trailing_zeros(decrypted_data);
         C.M = deserialize_message(encrypted_data);
     }
     println!("Authenticating new user : {:?}", C.M.Username);
     return C;
+}
+
+// send to everyone except the sender
+async fn send_to_all_except(C: &mut Client, msg: Vec<u8>) {
+    let mut clients = CLIENT_LIST.lock().unwrap();
+    for client in clients.iter_mut() {
+        if client.ip_address != C.ip_address {
+            client.stream.write_all(&msg).await.unwrap();
+        }
+    }
 }
 
 async fn handle_message_from_client(mut C: Client, channel_snd: Sender<Message>, mut channel_rcv: Receiver<Message>, ) -> Client {
@@ -156,7 +167,9 @@ async fn handle_message_from_client(mut C: Client, channel_snd: Sender<Message>,
             },
             Ok(recv_bytes) => {
                 println!("Received bytes: {}", recv_bytes);
-                //C.M.Data = remove_trailing_zeros(buffer.to_vec());
+                let decrypted_data =  encryption::decrypt_message(remove_trailing_zeros(buffer.to_vec()));
+                let encrypted_data = remove_trailing_zeros(decrypted_data);
+                C.M = deserialize_message(encrypted_data);
                 channel_snd.send(C.M.clone()).unwrap();
                 buffer.iter_mut().for_each(|x| *x = 0); // reset buffer
             },
@@ -177,6 +190,7 @@ async fn handle_message_from_client(mut C: Client, channel_snd: Sender<Message>,
                 println!("Sending data to {}", C.ip_address);
 
                 C.stream.write(&serialize_data(&received_data)).await.unwrap();
+                C.M.clear();
             },
             Err(err) => {
                 // edode : empty channel
