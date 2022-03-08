@@ -2,9 +2,11 @@ package main
 
 import (
 	"Uranus/message"
+	"bufio"
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -23,12 +25,16 @@ var (
 )
 
 func message_input(m string) ([]byte) {
-	var input []byte
 	for {
 		fmt.Printf("%s -> ", m)
-		fmt.Scanln(&input)
-		if len(input) > 0 {
-			return input;
+		in := bufio.NewReader(os.Stdin)
+		
+		line, err := in.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input")
+			os.Exit(1)
+		} else {
+			return []byte(strings.TrimSuffix(line, "\n"))
 		}
 	};
 }
@@ -45,16 +51,15 @@ func connect_to_server() (net.Conn) {
 
 func Client (server net.Conn) () {
 	for {
-		OM.Data = message_input("data")
+		OM.Command = message_input("Command")
+		OM.Data    = message_input("Data")
+		var enc_data = message.Encrypt_data(OM.Marshal())
 		
-		var enc_data = message.Encrypt_data(OM.Marshal(OM))
-		fmt.Printf("Encrypted data: %d\n", len(enc_data))
-		
-		bytes, err := server.Write(enc_data)
+		x, err := server.Write(enc_data)
 		if err != nil {
 			return;
 		} else {
-			fmt.Printf("Data sent : %d; %d", enc_data, bytes)
+			fmt.Println("Sent ", x, " bytes")
 		}
 	}
 }
