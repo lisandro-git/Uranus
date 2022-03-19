@@ -1,8 +1,9 @@
 package main
 
 import (
-	"Uranus/message"
+	"bot/message"
 	"bufio"
+	b64 "encoding/base64"
 	"fmt"
 	"net"
 	"os"
@@ -53,9 +54,11 @@ func Client (server net.Conn) () {
 	for {
 		OM.Command = message_input("Command")
 		OM.Data    = message_input("Data")
-		var enc_data = message.Encrypt_data(OM.Marshal())
 		
-		x, err := server.Write(enc_data)
+		var enc_data = message.Encrypt_data(OM.Marshal())
+		var encoded_data = b64.StdEncoding.EncodeToString(enc_data)
+		
+		x, err := server.Write([]byte(encoded_data))
 		if err != nil {
 			return;
 		} else {
@@ -67,11 +70,7 @@ func Client (server net.Conn) () {
 func main()() {
 	var server net.Conn = connect_to_server()
 	defer server.Close()
-
-	// declare variable from Messages.go
-	OM.Username = message_input("username")
-	OM.Command  = message_input("command")
-
+	
 	wg.Add(1)
 	go Client(server)
 	wg.Wait();

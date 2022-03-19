@@ -1,4 +1,3 @@
-use bincode::{deserialize, serialize};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::prelude::*;
@@ -8,7 +7,7 @@ use crate::blockchain::blockchain;
 use crate::blockchain::hash;
 
 
-fn main() -> bincode::Result<()> {
+fn main() -> std::io::Result<()> {
     let version: [u8; 4] = [6, 9, 6, 9];
     let prev_hash: [u8; 32] = [0; 32];
     let timestamp: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -21,7 +20,7 @@ fn main() -> bincode::Result<()> {
         block::Block_Data::new(15)
     ];
 
-    let serialized: Vec<u8> = match serialize(&y) {
+    /*let serialized: Vec<u8> = match serialize(&y) {
         Ok(y) => y,
         Err(e) => panic!("{}", e)
     };
@@ -35,6 +34,6 @@ fn main() -> bincode::Result<()> {
         Err(e) => panic!("{}", e)
     };
     println!("Serialized into {} bytes", deserialized.len());
-
+*/
     Ok(())
 }

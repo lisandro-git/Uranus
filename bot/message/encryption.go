@@ -12,7 +12,7 @@ import (
 
 // parse_public_key Parse public key from file
 func parse_public_key() (*rsa.PublicKey, error) {
-	public_key, err := ioutil.ReadFile("public.key")
+	public_key, err := ioutil.ReadFile("../public.key")
 	if err != nil {
 		return nil, err
 	}

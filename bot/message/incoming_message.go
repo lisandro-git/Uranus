@@ -7,10 +7,8 @@ import (
 )
 
 type Incoming_Message struct {
-	Username []byte
 	Data     []byte
 	Command  []byte
-	
 }
 
 func (IM Incoming_Message) Deserialize() (Incoming_Message) {

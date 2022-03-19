@@ -5,8 +5,12 @@ import (
 	"github.com/vmihailenco/msgpack"
 )
 
+type Bot struct {
+	Uid  [16]byte
+	Data Outgoing_Message
+}
+
 type Outgoing_Message struct {
-	Username []byte
 	Data     []byte
 	Command  []byte
 }
