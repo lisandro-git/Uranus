@@ -2,6 +2,7 @@ extern crate core;
 
 pub mod blockchain;
 pub mod server;
+mod morse;
 
 /*
 encryptions step :
