@@ -11,13 +11,14 @@ type Bot struct {
 }
 
 type Outgoing_Message struct {
+	Username []byte
 	Data     []byte
 	Command  []byte
 }
 
 func (OM Outgoing_Message) Marshal() ([]byte) {
 	var buf bytes.Buffer
-	enc := msgpack.NewEncoder(&buf).UseCompactEncoding(true)
+	enc := msgpack.NewEncoder(&buf).StructAsArray(true)
 	err := enc.Encode(&OM)
 	if err != nil {
 		panic(err)

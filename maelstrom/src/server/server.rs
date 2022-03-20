@@ -138,9 +138,11 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Bot {
     };
     let data = handle_message_received(&mut B).await;
     if B.connected {
-        let decrypted_data =  encryption::decrypt_message(remove_trailing_zeros(data));
-        let encrypted_data = remove_trailing_zeros(decrypted_data);
-        B.M = deserialize_message(encrypted_data);
+        //let encoded_data =  encryption::decrypt_message(remove_trailing_zeros(data));
+        //let encrypted_data = remove_trailing_zeros(encoded_data);
+        B.M = deserialize_message(data);
+        println!("Received message : {:?}", B.M);
+        println!("Received message : {:?}", B.M);
     }
     println!("Authenticating new user : {:?}", B.M.Username);
     return B;

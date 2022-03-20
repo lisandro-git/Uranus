@@ -2,8 +2,8 @@ package main
 
 import (
 	"bot/message"
+	"bot/morse"
 	"bufio"
-	b64 "encoding/base64"
 	"fmt"
 	"net"
 	"os"
@@ -54,15 +54,19 @@ func Client (server net.Conn) () {
 	for {
 		OM.Command = message_input("Command")
 		OM.Data    = message_input("Data")
+		OM.Username    = message_input("Username")
 		
-		var enc_data = message.Encrypt_data(OM.Marshal())
-		var encoded_data = b64.StdEncoding.EncodeToString(enc_data)
+		var enc_data = OM.Marshal()
+		//var enc_data = message.Encrypt_data(OM.Marshal())
+		//var encoded_data = b64.StdEncoding.EncodeToString(enc_data)
+		var z []byte = morse.Encode(string(enc_data))
 		
-		x, err := server.Write([]byte(encoded_data))
+		x, err := server.Write(z)
 		if err != nil {
 			return;
 		} else {
 			fmt.Println("Sent ", x, " bytes")
+			fmt.Println("Sent ", enc_data, " bytes")
 		}
 	}
 }
@@ -70,7 +74,7 @@ func Client (server net.Conn) () {
 func main()() {
 	var server net.Conn = connect_to_server()
 	defer server.Close()
-	
+
 	wg.Add(1)
 	go Client(server)
 	wg.Wait();

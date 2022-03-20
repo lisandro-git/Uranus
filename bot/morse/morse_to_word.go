@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-func Decode(word string, morse_signs map[string]string) string {
+func Decode(word string) string {
 	line := strings.TrimSuffix(word, "\n")
 	morse_code := strings.Split(line, " ")
 	
@@ -13,7 +13,7 @@ func Decode(word string, morse_signs map[string]string) string {
 	var space bool // edode : used to add a space if there is two spaces in between words
 	
 	for i = 0; i < len(morse_code); i++ {
-		for key, value := range morse_signs {
+		for key, value := range All_signs {
 			if morse_code[i] == "" {
 				if space {
 					result += " "
