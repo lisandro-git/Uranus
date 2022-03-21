@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-func Decode(word string) string {
+func Decode(word string) []byte {
 	line := strings.TrimSuffix(word, "\n")
 	morse_code := strings.Split(line, " ")
 	
@@ -29,5 +29,5 @@ func Decode(word string) string {
 			}
 		}
 	}
-	return result;
+	return []byte(result)
 }

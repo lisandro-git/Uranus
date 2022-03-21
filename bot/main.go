@@ -4,6 +4,7 @@ import (
 	"bot/message"
 	"bot/morse"
 	"bufio"
+	b32 "encoding/base32"
 	"fmt"
 	"net"
 	"os"
@@ -40,6 +41,22 @@ func message_input(m string) ([]byte) {
 	};
 }
 
+func obfuscate_data(data []byte) []byte {
+	var enc_data = message.Encrypt_data(OM.Marshal())
+	var encoded_data = b32.StdEncoding.EncodeToString(enc_data)
+	return morse.Encode(encoded_data)
+}
+
+func deobfuscate_data(data []byte) []byte {
+	var base32_data = morse.Decode(string(data))
+	encrypted_data, err := b32.StdEncoding.DecodeString(string(base32_data))
+	if err != nil {
+		fmt.Println("Error decoding base32 data")
+		os.Exit(1)
+	}
+	return message.Decrypt_data(encrypted_data)
+}
+
 func connect_to_server() (net.Conn) {
 	server, err := net.Dial(TYPE, HOST+":"+PORT)
 	if err != nil {
@@ -52,21 +69,18 @@ func connect_to_server() (net.Conn) {
 
 func Client (server net.Conn) () {
 	for {
-		OM.Command = message_input("Command")
-		OM.Data    = message_input("Data")
-		OM.Username    = message_input("Username")
+		OM.Command  = message_input("Command")
+		OM.Data     = message_input("Data")
+		OM.Username = message_input("Username")
 		
-		var enc_data = OM.Marshal()
-		//var enc_data = message.Encrypt_data(OM.Marshal())
-		//var encoded_data = b64.StdEncoding.EncodeToString(enc_data)
-		var z []byte = morse.Encode(string(enc_data))
+		var obf_data []byte = obfuscate_data(OM.Marshal())
 		
-		x, err := server.Write(z)
+		x, err := server.Write(obf_data)
 		if err != nil {
 			return;
 		} else {
 			fmt.Println("Sent ", x, " bytes")
-			fmt.Println("Sent ", enc_data, " bytes")
+			fmt.Println("Sent ", obf_data, " bytes")
 		}
 	}
 }
