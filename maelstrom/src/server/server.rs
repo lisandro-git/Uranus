@@ -19,13 +19,16 @@ use std::{
 };
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
+use base32;
 use crate::server::encryption;
-use base64;
+use crate::morse;
+use crate::server::encryption::decrypt_message;
 
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 4096;
 const USERNAME_LENGTH: usize = 10;
 const IV_LEN: usize = 16;
+const RFC4648_ALPHABET: &'static [u8]   = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 #[derive(Debug)]
 pub struct Bot {
@@ -128,6 +131,15 @@ fn deserialize_message(data: Vec<u8>) -> Message {
     return rmp_serde::from_read(data.as_slice()).unwrap();
 }
 
+fn deobfuscate_data(morse_code: Vec<u8>) -> Vec<u8> {
+    let base32_encoding = base32::Alphabet::RFC4648 { padding: true };
+    let base32_data = morse::morse_to_word::decode(remove_trailing_zeros(morse_code));
+    let encrypted_data = base32::decode(
+        base32_encoding,
+        from_utf8(base32_data.as_slice()).unwrap()).unwrap();
+    return decrypt_message(encrypted_data.to_vec());
+}
+
 async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Bot {
     let mut B = Bot {
         stream: socket,
@@ -138,11 +150,9 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Bot {
     };
     let data = handle_message_received(&mut B).await;
     if B.connected {
-        //let encoded_data =  encryption::decrypt_message(remove_trailing_zeros(data));
-        //let encrypted_data = remove_trailing_zeros(encoded_data);
-        B.M = deserialize_message(data);
-        println!("Received message : {:?}", B.M);
-        println!("Received message : {:?}", B.M);
+        let clear_data = deobfuscate_data(data);
+        B.M = deserialize_message(clear_data);
+
     }
     println!("Authenticating new user : {:?}", B.M.Username);
     return B;

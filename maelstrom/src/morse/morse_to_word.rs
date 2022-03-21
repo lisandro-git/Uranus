@@ -1,7 +1,9 @@
 use super::*;
 
-pub fn decode(input: String) -> String {
-    let text = input.replace("*", ".").trim().to_string();
+pub fn decode(input: Vec<u8>) -> Vec<u8> {
+    let input_string = String::from_utf8(input).unwrap();
+
+    let text = input_string.replace("*", ".").trim().to_string();
     let mut result = String::new();
     let words = text.split("/");
     for word in words {
@@ -44,7 +46,7 @@ pub fn decode(input: String) -> String {
                 "/" => ' ',
                 _ => {
                     println!("Could not parse: {}", c);
-                    return String::new();
+                    return vec![];
                 }
             };
             result.push(letter);
@@ -52,5 +54,5 @@ pub fn decode(input: String) -> String {
         result.push(' ');
     }
     result.pop();
-    return result;
+    return result.into_bytes().to_owned();
 }
