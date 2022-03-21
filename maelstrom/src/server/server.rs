@@ -158,7 +158,7 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Bot {
     return B;
 }
 
-async fn handle_message_from_client(mut B: Bot, channel_snd: Sender<Message>, mut channel_rcv: Receiver<Message>, ) -> Bot {
+async fn handle_message_from_client(mut B: Bot, channel_snd: Sender<Message>, mut channel_rcv: Receiver<Message>) -> Bot {
     let mut buffer: [u8; 4096] = [0; MSG_SIZE];
 
     loop{

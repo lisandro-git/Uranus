@@ -1,7 +1,9 @@
 package message
 
 import (
+	"bot/morse"
 	"bytes"
+	"encoding/base32"
 	"github.com/vmihailenco/msgpack"
 )
 
@@ -16,7 +18,7 @@ type Outgoing_Message struct {
 	Command  []byte
 }
 
-func (OM Outgoing_Message) Marshal() ([]byte) {
+func (OM Outgoing_Message) Marshal() []byte {
 	var buf bytes.Buffer
 	enc := msgpack.NewEncoder(&buf).StructAsArray(true)
 	err := enc.Encode(&OM)
@@ -24,4 +26,10 @@ func (OM Outgoing_Message) Marshal() ([]byte) {
 		panic(err)
 	}
 	return buf.Bytes()
+}
+
+func (OM Outgoing_Message) Obfuscate_data() []byte {
+	var encrypted_data = Encrypt_data(OM.Marshal())
+	var encoded_data = base32.StdEncoding.EncodeToString(encrypted_data)
+	return morse.Encode(encoded_data)
 }
