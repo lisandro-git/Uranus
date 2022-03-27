@@ -8,8 +8,8 @@ import (
 )
 
 type Bot struct {
-	Uid  [16]byte
-	Version [8]byte
+	Uid  [16]uint8
+	Version [8]uint8
 	Com    Commands
 }
 

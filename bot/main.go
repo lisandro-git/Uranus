@@ -20,8 +20,7 @@ const (
 
 var (
 	wg sync.WaitGroup
-	OM message.Outgoing_Message
-	IM message.Incoming_Message
+	O message.Bot
 )
 
 func message_input(m string) ([]byte) {
@@ -51,11 +50,10 @@ func connect_to_server() (net.Conn) {
 
 func Client (server net.Conn) () {
 	for {
-		OM.Command  = message_input("Command")
-		OM.Data     = message_input("Data")
-		OM.Username = message_input("Username")
+		O.Com.Command = message_input("Command")
+		O.Com.Data    = message_input("Data")
 		
-		x, err := server.Write(OM.Obfuscate_data())
+		x, err := server.Write(O.Obfuscate_data())
 		if err != nil {
 			return;
 		} else {
@@ -67,7 +65,7 @@ func Client (server net.Conn) () {
 func main()() {
 	var server net.Conn = connect_to_server()
 	defer server.Close()
-
+	
 	wg.Add(1)
 	go Client(server)
 	wg.Wait();

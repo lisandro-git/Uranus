@@ -28,51 +28,74 @@ const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 4096;
 const USERNAME_LENGTH: usize = 10;
 const IV_LEN: usize = 16;
-const RFC4648_ALPHABET: &'static [u8]   = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 #[derive(Debug)]
-pub struct Bot {
+pub struct Device_stream {
     stream: TcpStream,
     ip_address: std::net::SocketAddr,
     authenticated: bool,
     connected: bool,
-    M: Message,
+    B: Bot,
 }
-impl Bot {
-    fn new(sock: TcpStream, address: SocketAddr) -> Bot {
-        Bot {
+impl Device_stream {
+    fn new(sock: TcpStream, address: SocketAddr, uid: Vec<u8>, version: Vec<u8>) -> Device_stream {
+        Device_stream {
             stream: sock,
             ip_address: address,
             authenticated: false,
             connected: true,
-            M: Message::new(),
+            B: Bot::new(uid, version),
         }
     }
     fn erase_data(&mut self) {
         //self.sock.shutdown(Shutdown::Both).unwrap();
-        self.M.erase_data();
+        self.B.erase_data();
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Message {
+pub struct Bot {
+    // initilazing a vector of 16 bytes
     #[serde(with = "serde_bytes")]
-    Username: Vec<u8>,
+    uid: Vec<u8>,
     #[serde(with = "serde_bytes")]
-    Data: Vec<u8>,
-    #[serde(with = "serde_bytes")]
-    Command: Vec<u8>,
+    version: Vec<u8>,
+    com: Commands
 }
-impl Message {
-    fn new() -> Message {
-        Message { Username: vec![], Data: vec![], Command: vec![] }
+impl Bot {
+    fn new(uid: Vec<u8>, version: Vec<u8>) -> Bot {
+        Bot {
+            uid: uid,
+            version: version,
+            com: Commands::new(Vec::new(), Vec::new())
+        }
     }
     fn erase_data(&mut self) {
-        //self.Username.clear();
-        self.Data.clear();
-        self.Command.clear();
+        self.com.erase_data();
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Commands {
+    #[serde(with = "serde_bytes")]
+    command: Vec<u8>,
+    #[serde(with = "serde_bytes")]
+    data: Vec<u8>,
+}
+impl Commands {
+    fn new(command: Vec<u8>, data: Vec<u8>) -> Commands {
+        Commands {
+            command: command,
+            data: data,
+        }
+    }
+    fn erase_data(&mut self) {
+        self.command.clear();
+        self.data.clear();
+    }
+}
+
+
 
 fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     // Used to remove the zeros at the end of the received encrypted message
@@ -96,14 +119,14 @@ fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     return res.to_owned();
 }
 
-async fn handle_message_received(B: &mut Bot) -> Vec<u8> {
+async fn handle_message_received(DS: &mut Device_stream) -> Vec<u8> {
     let mut buffer = [0; MSG_SIZE];
     loop {
-        B.stream.readable().await;
-        match B.stream.try_read(&mut buffer) {
+        DS.stream.readable().await;
+        match DS.stream.try_read(&mut buffer) {
             Ok(0) => {
-                //println!("Client {} (username : {:?}) disconnected", B.ip_address, from_utf8(&B.M.Username).unwrap());
-                B.connected = false;
+                //println!("Client {} (username : {:?}) disconnected", DS.ip_address, from_utf8(&DS.M.Username).unwrap());
+                DS.connected = false;
                 return vec![];
             }
             Ok(recv_bytes) => {
@@ -123,11 +146,11 @@ async fn handle_message_received(B: &mut Bot) -> Vec<u8> {
     };
 }
 
-fn serialize_data(M: &Message) -> Vec<u8>{
-    return rmp_serde::to_vec_named(&M).unwrap();
+fn serialize_data(B: &Bot) -> Vec<u8>{
+    return rmp_serde::to_vec_named(&B).unwrap();
 }
 
-fn deserialize_message(data: Vec<u8>) -> Message {
+fn deserialize_message(data: Vec<u8>) -> Bot {
     return rmp_serde::from_read(data.as_slice()).unwrap();
 }
 
@@ -140,42 +163,41 @@ fn deobfuscate_data(morse_code: Vec<u8>) -> Vec<u8> {
     return decrypt_message(encrypted_data.to_vec());
 }
 
-async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Bot {
-    let mut B = Bot {
+async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Device_stream {
+    let mut DS = Device_stream {
         stream: socket,
         ip_address: addr,
         authenticated: false,
         connected: true,
-        M: Message::new(),
+        B: Bot::new(Vec::new(), Vec::new()),
     };
-    let data = handle_message_received(&mut B).await;
-    if B.connected {
+    let data = handle_message_received(&mut DS).await;
+    if DS.connected {
         let clear_data = deobfuscate_data(data);
-        B.M = deserialize_message(clear_data);
+        DS.B = deserialize_message(clear_data);
 
     }
-    println!("Authenticating new user : {:?}", B.M.Username);
-    return B;
+    println!("Authenticating new user : {:?}", DS.B.uid);
+    return DS;
 }
 
-async fn handle_message_from_client(mut B: Bot, channel_snd: Sender<Message>, mut channel_rcv: Receiver<Message>) -> Bot {
+async fn handle_message_from_client(mut DS: Device_stream, channel_snd: Sender<Bot>, mut channel_rcv: Receiver<Bot>) -> Device_stream {
     let mut buffer: [u8; 4096] = [0; MSG_SIZE];
 
     loop{
-        match B.stream.try_read(&mut buffer) {
+        match DS.stream.try_read(&mut buffer) {
             Ok(n) if n == 0 => {
-                println!("Client {} (username : {:?}) disconnected", B.ip_address, from_utf8(&B.M.Username).unwrap());
-                B.connected = false;
-                return B;
+                println!("Client {} (username : {:?}) disconnected", DS.ip_address, from_utf8(&DS.B.uid).unwrap());
+                DS.connected = false;
+                return DS;
             },
             Ok(recv_bytes) => {
                 println!("Received bytes: {}", recv_bytes);
-                // decoding the base64 before doing this
-                
                 let decrypted_data = encryption::decrypt_message(remove_trailing_zeros(buffer.to_vec()));
                 let encrypted_data = remove_trailing_zeros(decrypted_data);
-                B.M = deserialize_message(encrypted_data);
-                channel_snd.send(B.M.clone()).unwrap();
+
+                DS.B = deserialize_message(encrypted_data);
+                channel_snd.send(DS.B.clone()).unwrap();
                 buffer.iter_mut().for_each(|x| *x = 0); // reset buffer
             },
             Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
@@ -190,12 +212,12 @@ async fn handle_message_from_client(mut B: Bot, channel_snd: Sender<Message>, mu
 
         match channel_rcv.try_recv() {
             Ok(mut received_data) => {
-                println!("Received data from channel : {:?}, from : {:?}", received_data, B.ip_address);
+                println!("Received data from channel : {:?}, from : {:?}", received_data, DS.ip_address);
                 //sending the data to other users
-                println!("Sending data to {}", B.ip_address);
+                println!("Sending data to {}", DS.ip_address);
 
-                B.stream.write(&serialize_data(&received_data)).await.unwrap();
-                B.M.erase_data();
+                DS.stream.write(&serialize_data(&received_data)).await.unwrap();
+                DS.B.erase_data();
             },
             Err(err) => {
                 // edode : empty channel
@@ -215,9 +237,9 @@ pub async fn main() -> io::Result<()> {
         // User accept
         let (mut socket, addr) = listener.accept().await.unwrap();
         println!("New user connected: {}", addr);
-        let mut B: Bot = authenticate_new_user(socket, addr).await;
-        if !B.connected {
-            drop(B);
+        let mut DS: Device_stream = authenticate_new_user(socket, addr).await;
+        if !DS.connected {
+            drop(DS);
             continue;
         }
         // Thread creation
@@ -225,7 +247,7 @@ pub async fn main() -> io::Result<()> {
         let thread_rcv = channel_snd.subscribe();
 
         tokio::spawn(async move {
-            handle_message_from_client(B, thread_send, thread_rcv).await;
+            handle_message_from_client(DS, thread_send, thread_rcv).await;
         });
     }
 }
