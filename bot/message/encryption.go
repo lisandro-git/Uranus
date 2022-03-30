@@ -12,8 +12,8 @@ import (
 	"log"
 )
 
-// import_public_key Parse public key from file
-func import_public_key() (*rsa.PublicKey, error) {
+// importPublicKey Parse public key from file
+func importPublicKey() (*rsa.PublicKey, error) {
 	public_key, err := ioutil.ReadFile("../public.key")
 	if err != nil {
 		return nil, err
@@ -38,9 +38,9 @@ func import_public_key() (*rsa.PublicKey, error) {
 	return nil, errors.New("Key type is not RSA")
 }
 
-// Encrypt_data Encrypt message after it has been serialized
-func Encrypt_data(data []byte) ([]byte) {
-	public_key, err := import_public_key()
+// EncryptData Encrypt message after it has been serialized
+func EncryptData(data []byte) ([]byte) {
+	public_key, err := importPublicKey()
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return nil;
@@ -59,8 +59,8 @@ func Encrypt_data(data []byte) ([]byte) {
 	return encryptedBytes;
 }
 
-// import_private_key Imports private key from file
-func import_private_key() (*rsa.PrivateKey, error) {
+// importPrivateKey Imports private key from file
+func importPrivateKey() (*rsa.PrivateKey, error) {
 	priv_pem, err := ioutil.ReadFile("../private.key")
 	if err != nil {
 		log.Fatal(err)
@@ -79,9 +79,9 @@ func import_private_key() (*rsa.PrivateKey, error) {
 	return priv, nil
 }
 
-// Decrypt_data Decrypt message after it has been received and de-obfuscated
-func Decrypt_data(data []byte) []byte {
-	private_key, err := import_private_key()
+// DecryptData Decrypt message after it has been received and de-obfuscated
+func DecryptData(data []byte) []byte {
+	private_key, err := importPrivateKey()
 	if err != nil {
 		log.Fatal(err)
 	}

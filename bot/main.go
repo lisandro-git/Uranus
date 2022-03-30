@@ -4,26 +4,34 @@ import (
 	"bot/message"
 	"bufio"
 	"fmt"
+	r "math/rand"
 	"net"
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
-	HOST            = "localhost"
-	PORT            = "6000"
-	TYPE            = "tcp4"
-	MSG_SIZE        = 4096
-	USERNAME_LENGTH = 10
+	HOST      = "localhost"
+	PORT      = "6000"
+	TYPE      = "tcp4"
+	Msgsize   = 4096
+	UidLength = 16
+	letterBytes = "0123456789abcdef"
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+
 )
 
 var (
 	wg sync.WaitGroup
 	O message.Bot
+	src = r.NewSource(time.Now().UnixNano())
 )
 
-func message_input(m string) ([]byte) {
+func messageInput(m string) ([]byte) {
 	for {
 		fmt.Printf("%s -> ", m)
 		in := bufio.NewReader(os.Stdin)
@@ -38,7 +46,7 @@ func message_input(m string) ([]byte) {
 	};
 }
 
-func connect_to_server() (net.Conn) {
+func connectToServer() (net.Conn) {
 	server, err := net.Dial(TYPE, HOST+":"+PORT)
 	if err != nil {
 		fmt.Println("Error connecting to : ", err.Error())
@@ -48,12 +56,31 @@ func connect_to_server() (net.Conn) {
 	return server;
 }
 
-func Client (server net.Conn) () {
+func generateRandomUid() []byte {
+	sb := strings.Builder{}
+	sb.Grow(UidLength)
+	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
+	for i, cache, remain := UidLength-1, src.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = src.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			sb.WriteByte(letterBytes[idx])
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+	
+	return sb.Bytes()
+}
+
+func client(server net.Conn) () {
 	for {
-		O.Com.Command = message_input("Command")
-		O.Com.Data    = message_input("Data")
+		O.Com.Command = messageInput("Command")
+		O.Com.Data    = messageInput("Data")
 		
-		x, err := server.Write(O.Obfuscate_data())
+		x, err := server.Write(O.ObfuscateData())
 		if err != nil {
 			return;
 		} else {
@@ -63,11 +90,12 @@ func Client (server net.Conn) () {
 }
 
 func main()() {
-	var server net.Conn = connect_to_server()
+	var server net.Conn = connectToServer()
 	defer server.Close()
 	
 	wg.Add(1)
-	go Client(server)
+	O.Uid = generateRandomUid()
+	go client(server)
 	wg.Wait();
 }
 

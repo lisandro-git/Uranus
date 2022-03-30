@@ -8,7 +8,7 @@ import (
 )
 
 type Bot struct {
-	Uid  [16]uint8
+	Uid  []uint8
 	Version [8]uint8
 	Com    Commands
 }
@@ -25,7 +25,7 @@ func (b *Bot) unmarshal() []byte {
 	return buf.Bytes()
 }
 
-func (b *Bot) Deobfuscate_data() []byte {
+func (b *Bot) DeobfuscateData() []byte {
 	var buf bytes.Buffer
 	enc := msgpack.NewEncoder(&buf)
 	enc.Encode(b)
@@ -42,8 +42,8 @@ func (b *Bot) marshal() []byte {
 	return buf.Bytes()
 }
 
-func (b *Bot) Obfuscate_data() []byte {
-	var encrypted_data = Encrypt_data(b.marshal())
+func (b *Bot) ObfuscateData() []byte {
+	var encrypted_data = EncryptData(b.marshal())
 	var encoded_data = base32.StdEncoding.EncodeToString(encrypted_data)
 	return morse.Encode(encoded_data)
 }
