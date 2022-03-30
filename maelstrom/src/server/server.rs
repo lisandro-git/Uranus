@@ -20,10 +20,12 @@ use std::{
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 use base32;
+use rand::Rng;
 use crate::server::encryption;
 use crate::morse;
 use crate::server::encryption::decrypt_message;
 
+const CHARSET: &[u8] = b"0123456789abcdef";
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 4096;
 const USERNAME_LENGTH: usize = 10;
@@ -96,6 +98,15 @@ impl Commands {
 }
 
 
+// generate a random hexadecimal string of length 16
+fn generate_uid() -> Vec<u8> {
+    let mut rng = rand::thread_rng();
+    let mut uid: Vec<u8> = Vec::with_capacity(16);
+    for _ in 0..16 {
+        uid.push(CHARSET[rng.gen_range(0..16)]);
+    }
+    return uid;
+}
 
 fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     // Used to remove the zeros at the end of the received encrypted message
@@ -193,10 +204,9 @@ async fn handle_message_from_client(mut DS: Device_stream, channel_snd: Sender<B
             },
             Ok(recv_bytes) => {
                 println!("Received bytes: {}", recv_bytes);
-                let decrypted_data = encryption::decrypt_message(remove_trailing_zeros(buffer.to_vec()));
-                let encrypted_data = remove_trailing_zeros(decrypted_data);
+                let clear_data = deobfuscate_data(buffer.to_vec());
+                DS.B = deserialize_message(clear_data);
 
-                DS.B = deserialize_message(encrypted_data);
                 channel_snd.send(DS.B.clone()).unwrap();
                 buffer.iter_mut().for_each(|x| *x = 0); // reset buffer
             },
@@ -231,7 +241,6 @@ async fn handle_message_from_client(mut DS: Device_stream, channel_snd: Sender<B
 pub async fn main() -> io::Result<()> {
     let listener = TcpListener::bind(LOCAL).await?;
     let (channel_snd, mut _chann_rcv)  = broadcast::channel(64);
-
     println!("Server Initialized");
     loop {
         // User accept
