@@ -90,7 +90,7 @@ func tryConnect()() {
 	} else {
 		return;
 	}
-	write(remoteServer)
+	writeData(remoteServer)
 }
 
 func startLocalServer() net.Listener {
@@ -103,7 +103,7 @@ func startLocalServer() net.Listener {
 	return listener;
 }
 
-func read(conn net.Conn) (string, error) {
+func readCommands(conn net.Conn) (string, error) {
 	defer conn.Close()
 	
 	reader := bufio.NewReader(conn)
@@ -125,7 +125,7 @@ func read(conn net.Conn) (string, error) {
 	return buffer.String(), nil;
 }
 
-func write(server net.Conn) () {
+func writeData(server net.Conn) () {
 	for {
 		O.Com.Data = messageInput("Data")
 		O.Com.Command = []byte("");
@@ -158,7 +158,7 @@ func main() () {
 			os.Exit(1)
 		}
 		fmt.Println("Accepted connection from ", conn.RemoteAddr())
-		read(conn)
+		readCommands(conn)
 	}()
 	
 	wg.Wait();

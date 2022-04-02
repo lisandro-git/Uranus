@@ -10,7 +10,7 @@ func Encode(word string) []byte {
 	var result []byte
 	var i int
 	for i = 0; i < len(word); i++ {
-		if v, found := All_signs[string(word[i])]; found {
+		if v, found := AllSigns[string(word[i])]; found {
 			result = append(result, v + " "...)
 		}
 	}

@@ -1,7 +1,7 @@
 package morse
 
 var (
-	All_signs = map[string]string {
+	AllSigns = map[string]string {
 		"A": ".-",
 		"B": "-...",
 		"C": "-.-.",
