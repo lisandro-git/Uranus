@@ -66,7 +66,7 @@ func importPrivateKey() (*rsa.PrivateKey, error) {
 		log.Fatal(err)
 	}
 	
-	block, _ := pem.Decode([]byte(priv_pem))
+	block, _ := pem.Decode(priv_pem)
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block containing the key")
 	}
