@@ -32,5 +32,5 @@ pub fn decrypt_message(data: Vec<u8>) -> Vec<u8> {
     let mut buf: Vec<u8> = vec![0; private_key.size() as usize];
     let _ = private_key.private_decrypt(&data, &mut buf, Padding::PKCS1).unwrap();
 
-    return buf;
+    return buf.to_owned();
 }

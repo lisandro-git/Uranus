@@ -20,12 +20,12 @@ use std::{
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 use base32;
-use rand::Rng;
+
 use crate::server::encryption;
 use crate::morse;
-use crate::server::encryption::decrypt_message;
+use crate::server::lib;
+use crate::server::data_processing as dp;
 
-const CHARSET: &[u8] = b"0123456789abcdef";
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 4096;
 const USERNAME_LENGTH: usize = 10;
@@ -57,7 +57,6 @@ impl Device_stream {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Bot {
-    // initilazing a vector of 16 bytes
     #[serde(with = "serde_bytes")]
     uid: Vec<u8>,
     #[serde(with = "serde_bytes")]
@@ -97,39 +96,6 @@ impl Commands {
     }
 }
 
-
-// generate a random hexadecimal string of length 16
-fn generate_uid() -> Vec<u8> {
-    let mut rng = rand::thread_rng();
-    let mut uid: Vec<u8> = Vec::with_capacity(16);
-    for _ in 0..16 {
-        uid.push(CHARSET[rng.gen_range(0..16)]);
-    }
-    return uid;
-}
-
-fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
-    // Used to remove the zeros at the end of the received encrypted message
-    // but not inside the message (purpose of the 'keep_push' var
-
-    let mut transit: Vec<u8> = vec![];
-    let mut res: Vec<u8> = vec![];
-    let mut keep_push: bool = false;
-    for d in data.iter().rev() {
-        if *d == 0 && !keep_push{
-            continue;
-        } else {
-            transit.push(*d);
-            keep_push = true;
-        }
-    }
-    for t in transit.iter().rev() {
-        res.push(*t);
-    }
-    //res.push(0)
-    return res.to_owned();
-}
-
 async fn handle_message_received(DS: &mut Device_stream) -> Vec<u8> {
     let mut buffer = [0; MSG_SIZE];
     loop {
@@ -157,23 +123,6 @@ async fn handle_message_received(DS: &mut Device_stream) -> Vec<u8> {
     };
 }
 
-fn serialize_data(B: &Bot) -> Vec<u8>{
-    return rmp_serde::to_vec_named(&B).unwrap();
-}
-
-fn deserialize_message(data: Vec<u8>) -> Bot {
-    return rmp_serde::from_read(data.as_slice()).unwrap();
-}
-
-fn deobfuscate_data(morse_code: Vec<u8>) -> Vec<u8> {
-    let base32_encoding = base32::Alphabet::RFC4648 { padding: true };
-    let base32_data = morse::morse_to_word::decode(remove_trailing_zeros(morse_code));
-    let encrypted_data = base32::decode(
-        base32_encoding,
-        from_utf8(base32_data.as_slice()).unwrap()).unwrap();
-    return decrypt_message(encrypted_data.to_vec());
-}
-
 async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Device_stream {
     let mut DS = Device_stream {
         stream: socket,
@@ -184,9 +133,8 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Device_st
     };
     let data = handle_message_received(&mut DS).await;
     if DS.connected {
-        let clear_data = deobfuscate_data(data);
-        DS.B = deserialize_message(clear_data);
-
+        let clear_data = dp::deobfuscate_data(data);
+        DS.B = dp::deserialize_message(clear_data);
     }
     println!("Authenticating new user : {:?}", DS.B.uid);
     return DS;
@@ -204,9 +152,8 @@ async fn handle_message_from_client(mut DS: Device_stream, channel_snd: Sender<B
             },
             Ok(recv_bytes) => {
                 println!("Received bytes: {}", recv_bytes);
-                let clear_data = deobfuscate_data(buffer.to_vec());
-                DS.B = deserialize_message(clear_data);
-
+                let clear_data = dp::deobfuscate_data(buffer.to_vec());
+                DS.B = dp::deserialize_message(clear_data);
                 channel_snd.send(DS.B.clone()).unwrap();
                 buffer.iter_mut().for_each(|x| *x = 0); // reset buffer
             },
@@ -226,7 +173,7 @@ async fn handle_message_from_client(mut DS: Device_stream, channel_snd: Sender<B
                 //sending the data to other users
                 println!("Sending data to {}", DS.ip_address);
 
-                DS.stream.write(&serialize_data(&received_data)).await.unwrap();
+                DS.stream.write(&dp::serialize_data(&received_data)).await.unwrap();
                 DS.B.erase_data();
             },
             Err(err) => {
