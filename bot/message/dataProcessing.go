@@ -5,6 +5,9 @@ import (
 	"bytes"
 	"encoding/base32"
 	"github.com/vmihailenco/msgpack"
+	r "math/rand"
+	"strings"
+	"time"
 )
 
 type Bot struct {
@@ -16,6 +19,39 @@ type Bot struct {
 type Commands struct {
 	Command  []byte
 	Data []byte
+}
+
+const (
+	UidLength  = 16
+	letterBytes = "0123456789abcdef"
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
+
+var (
+	src = r.NewSource(time.Now().UnixNano())
+)
+
+// generateRandomUid generates a random hexadecimal string
+// of length 16 used to identify the bot
+func GenerateRandomUid() []byte {
+	sb := strings.Builder{}
+	sb.Grow(UidLength)
+	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
+	for i, cache, remain := UidLength-1, src.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = src.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			sb.WriteByte(letterBytes[idx])
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+	
+	return sb.Bytes();
 }
 
 func (b *Bot) unmarshal() []byte {
