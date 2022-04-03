@@ -1,8 +1,8 @@
 use std::str::from_utf8;
 use rmp_serde::{Deserializer, Serializer};
-use crate::server::encryption;
+use crate::communication::encryption;
 use crate::morse;
-use super::server::Bot;
+use super::bot;
 
 fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     // Used to remove the zeros at the end of the received encrypted message
@@ -26,11 +26,11 @@ fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     return res.to_owned();
 }
 
-pub fn serialize_data(B: &Bot) -> Vec<u8>{
+pub fn serialize_data(B: &bot::Bot) -> Vec<u8>{
     return rmp_serde::to_vec(&B).unwrap();
 }
 
-pub fn deserialize_message(data: Vec<u8>) -> Bot {
+pub fn deserialize_message(data: Vec<u8>) -> bot::Bot {
     return rmp_serde::from_read(data.as_slice()).unwrap();
 }
 

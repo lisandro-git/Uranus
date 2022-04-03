@@ -1,4 +1,3 @@
-
 extern crate core;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufReader, Interest, ReadBuf},
@@ -22,84 +21,18 @@ use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 use base32;
 
-use crate::server::encryption;
+use crate::communication::encryption;
 use crate::morse;
-use crate::server::lib;
-use crate::server::data_processing as dp;
+use crate::communication::lib;
+use crate::communication::data_processing as dp;
+use super::bot;
 
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 4096;
 const USERNAME_LENGTH: usize = 10;
 const IV_LEN: usize = 16;
 
-
-
-#[derive(Debug)]
-pub struct Device_stream {
-    stream: TcpStream,
-    ip_address: std::net::SocketAddr,
-    authenticated: bool,
-    connected: bool,
-    B: Bot,
-}
-impl Device_stream {
-    fn new(sock: TcpStream, address: SocketAddr, uid: Vec<u8>, version: Vec<u8>) -> Device_stream {
-        Device_stream {
-            stream: sock,
-            ip_address: address,
-            authenticated: false,
-            connected: true,
-            B: Bot::new(uid, version),
-        }
-    }
-    fn erase_data(&mut self) {
-        //self.sock.shutdown(Shutdown::Both).unwrap();
-        self.B.erase_data();
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Bot {
-    #[serde(with = "serde_bytes")]
-    uid: Vec<u8>,
-    #[serde(with = "serde_bytes")]
-    version: Vec<u8>,
-    com: Commands
-}
-impl Bot {
-    fn new(uid: Vec<u8>, version: Vec<u8>) -> Bot {
-        Bot {
-            uid: uid,
-            version: version,
-            com: Commands::new(Vec::new(), Vec::new())
-        }
-    }
-    fn erase_data(&mut self) {
-        self.com.erase_data();
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Commands {
-    #[serde(with = "serde_bytes")]
-    command: Vec<u8>,
-    #[serde(with = "serde_bytes")]
-    data: Vec<u8>,
-}
-impl Commands {
-    fn new(command: Vec<u8>, data: Vec<u8>) -> Commands {
-        Commands {
-            command: command,
-            data: data,
-        }
-    }
-    fn erase_data(&mut self) {
-        self.command.clear();
-        self.data.clear();
-    }
-}
-
-async fn handle_message_received(DS: &mut Device_stream) -> Vec<u8> {
+async fn handle_message_received(DS: &mut bot::Device_stream) -> Vec<u8> {
     let mut buffer = [0; MSG_SIZE];
     loop {
         DS.stream.readable().await;
@@ -126,13 +59,13 @@ async fn handle_message_received(DS: &mut Device_stream) -> Vec<u8> {
     };
 }
 
-async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Device_stream {
-    let mut DS = Device_stream {
+async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> bot::Device_stream {
+    let mut DS = bot::Device_stream {
         stream: socket,
         ip_address: addr,
         authenticated: false,
         connected: true,
-        B: Bot::new(Vec::new(), Vec::new()),
+        B: bot::Bot::new(Vec::new(), Vec::new()),
     };
     let data = handle_message_received(&mut DS).await;
     if DS.connected {
@@ -143,7 +76,7 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> Device_st
     return DS;
 }
 
-async fn handle_message_from_client(mut DS: Device_stream, channel_snd: Sender<Bot>, mut channel_rcv: Receiver<Bot>) -> Device_stream {
+async fn handle_message_from_client(mut DS: bot::Device_stream, channel_snd: Sender<bot::Bot>, mut channel_rcv: Receiver<bot::Bot>) -> bot::Device_stream {
     let mut buffer: [u8; 4096] = [0; MSG_SIZE];
 
     loop{
@@ -196,7 +129,7 @@ pub async fn main() -> io::Result<()> {
         // User accept
         let (mut socket, addr) = listener.accept().await.unwrap();
         println!("New user connected: {}", addr);
-        let mut DS: Device_stream = authenticate_new_user(socket, addr).await;
+        let mut DS: bot::Device_stream = authenticate_new_user(socket, addr).await;
         if !DS.connected {
             drop(DS);
             continue;

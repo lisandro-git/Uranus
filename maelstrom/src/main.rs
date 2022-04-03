@@ -1,19 +1,15 @@
+#![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
+#![allow(dead_code)]
+#![allow(unused)]
 extern crate core;
 
 pub mod blockchain;
-pub mod server;
+pub mod communication;
 mod morse;
-
-/*
-encryptions step :
-    - data
-    - base64
-    - rsa
-
- */
 
 fn main() {
     //server::encryption::decrypt_message(vec![0]);
-    server::server::main();
+    communication::server::main();
     println!("Hello, world!");
 }

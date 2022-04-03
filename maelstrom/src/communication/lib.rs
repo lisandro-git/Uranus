@@ -1,6 +1,7 @@
 use rand::Rng;
 
 const CHARSET: &[u8] = b"0123456789abcdef";
+
 // generate a random hexadecimal string of length 16
 pub fn generate_uid() -> Vec<u8> {
     let mut rng = rand::thread_rng();
