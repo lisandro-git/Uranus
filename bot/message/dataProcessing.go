@@ -4,6 +4,7 @@ import (
 	"bot/morse"
 	"bytes"
 	"encoding/base32"
+	"fmt"
 	"github.com/vmihailenco/msgpack"
 	r "math/rand"
 	"strings"
@@ -54,18 +55,25 @@ func GenerateRandomUid() []byte {
 	return sb.Bytes();
 }
 
-func (b *Bot) unmarshal() []byte {
-	var buf bytes.Buffer
-	enc := msgpack.NewEncoder(&buf)
-	enc.Encode(b)
-	return buf.Bytes()
+func unmarshal(data []byte) Bot {
+	fmt.Println("serialized data: ", data)
+	var bot Bot
+	enc := msgpack.NewDecoder(bytes.NewBuffer(data))
+	fmt.Println("enc: ", enc)
+	err := enc.Decode(&bot)
+	if err != nil {
+		panic(err)
+	}
+	return bot
 }
 
-func (b *Bot) DeobfuscateData() []byte {
-	var buf bytes.Buffer
-	enc := msgpack.NewEncoder(&buf)
-	enc.Encode(b)
-	return buf.Bytes()
+func DeobfuscateData(data []byte) Bot {
+	var encodedData []byte = morse.Decode(string(data))
+	encryptedData, err := base32.StdEncoding.DecodeString(string(encodedData))
+	if err != nil {
+		panic(err)
+	}
+	return unmarshal(DecryptData(encryptedData))
 }
 
 func (b *Bot) marshal() []byte {

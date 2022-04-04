@@ -10,6 +10,7 @@ mod morse;
 
 fn main() {
     //server::encryption::decrypt_message(vec![0]);
-    communication::server::main();
+    // communication::server::main();
+    communication::client::main();
     println!("Hello, world!");
 }

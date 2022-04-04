@@ -4,7 +4,7 @@ use crate::communication::encryption;
 use crate::morse;
 use super::bot;
 
-fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
+pub fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     // Used to remove the zeros at the end of the received encrypted message
     // but not inside the message (purpose of the 'keep_push' var
 
@@ -35,10 +35,19 @@ pub fn deserialize_message(data: Vec<u8>) -> bot::Bot {
 }
 
 pub fn deobfuscate_data(morse_code: Vec<u8>) -> Vec<u8> {
-    let base32_encoding = base32::Alphabet::RFC4648 { padding: true };
     let base32_data = morse::morse_to_word::decode(remove_trailing_zeros(morse_code));
     let encrypted_data = base32::decode(
-        base32_encoding,
+        base32::Alphabet::RFC4648 { padding: true },
         from_utf8(base32_data.as_slice()).unwrap()).unwrap();
     return remove_trailing_zeros(encryption::decrypt_message(encrypted_data));
+}
+
+pub fn obfuscate_data(data: Vec<u8>) -> Vec<u8> {
+    let encrypted_data = encryption::encrypt_message(data);
+    println!("encrypted_data : {:?}", encrypted_data);
+    let base32_data = base32::encode(
+        base32::Alphabet::RFC4648 { padding: true },
+        &encrypted_data);
+    let morse_code = morse::word_to_morse::encode(base32_data);
+    return morse_code.into_bytes();
 }

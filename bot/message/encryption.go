@@ -1,7 +1,6 @@
 package message
 
 import (
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -14,12 +13,12 @@ import (
 
 // importPublicKey Parse public key from file
 func importPublicKey() (*rsa.PublicKey, error) {
-	public_key, err := ioutil.ReadFile("../public.key")
+	publicKey, err := ioutil.ReadFile("../public.key")
 	if err != nil {
 		return nil, err
 	}
 	
-	block, _ := pem.Decode(public_key)
+	block, _ := pem.Decode(publicKey)
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block containing the key")
 	}
@@ -40,18 +39,12 @@ func importPublicKey() (*rsa.PublicKey, error) {
 
 // EncryptData Encrypt message after it has been serialized
 func EncryptData(data []byte) ([]byte) {
-	public_key, err := importPublicKey()
+	publicKey, err := importPublicKey()
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return nil;
 	}
-	encryptedBytes, err := rsa.EncryptPKCS1v15(rand.Reader, public_key, data)
-	/*encryptedBytes, err := rsa.EncryptOAEP(
-		sha256.New(),
-		rand.Reader,
-		public_key,
-		data,
-		nil)*/
+	encryptedBytes, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, data)
 	
 	if err != nil {
 		panic(err)
@@ -61,12 +54,12 @@ func EncryptData(data []byte) ([]byte) {
 
 // importPrivateKey Imports private key from file
 func importPrivateKey() (*rsa.PrivateKey, error) {
-	priv_pem, err := ioutil.ReadFile("../private.key")
+	privPem, err := ioutil.ReadFile("../private.key")
 	if err != nil {
 		log.Fatal(err)
 	}
 	
-	block, _ := pem.Decode(priv_pem)
+	block, _ := pem.Decode(privPem)
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block containing the key")
 	}
@@ -81,18 +74,15 @@ func importPrivateKey() (*rsa.PrivateKey, error) {
 
 // DecryptData Decrypt message after it has been received and de-obfuscated
 func DecryptData(data []byte) []byte {
-	private_key, err := importPrivateKey()
+	privateKey, err := importPrivateKey()
 	if err != nil {
 		log.Fatal(err)
 	}
 	
-	decrypted_bytes, err := private_key.Decrypt(
-		nil,
-		data,
-		&rsa.OAEPOptions{Hash: crypto.SHA256})
+	decryptedBytes, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, data)
 	
 	if err != nil {
 		panic(err)
 	}
-	return decrypted_bytes
+	return decryptedBytes
 }

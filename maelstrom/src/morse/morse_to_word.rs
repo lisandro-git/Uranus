@@ -1,5 +1,3 @@
-use super::*;
-
 pub fn decode(input: Vec<u8>) -> Vec<u8> {
     let input_string = String::from_utf8(input).unwrap();
 
