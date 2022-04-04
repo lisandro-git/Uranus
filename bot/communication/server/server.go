@@ -2,7 +2,6 @@ package server
 
 import (
 	msg "bot/message"
-	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -25,24 +24,18 @@ func StartLocalServer() net.Listener {
 	return listener;
 }
 
-func ReadCommands(conn net.Conn) (msg.Bot, error) {
-	defer conn.Close()
-	
+func ReadCommands(conn net.Conn, B *msg.Bot) (msg.Bot, error) {
 	var buffer [4096]byte
 	for {
 		read, err := conn.Read(buffer[:])
 		if err != nil {
-			return msg.Bot{}, err
-		}
-		fmt.Println("Deobfuscated data : ", msg.DeobfuscateData(bytes.Trim(buffer[:read], "\x00")))
-		
-		if err != nil {
-			// if the error is an End Of File this is still good
 			if err == io.EOF {
-				break;
+				return msg.Bot{}, nil;
+			} else {
+				return msg.Bot{}, err;
 			}
-			return msg.Bot{}, err
 		}
+		B.DeobfuscateData(buffer[:read])
+		fmt.Println("deobfuscated data : ", B)
 	}
-	return msg.Bot{}, nil;
 }

