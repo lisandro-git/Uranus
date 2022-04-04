@@ -46,15 +46,14 @@ func main() () {
 		defer wg.Done()
 		
 		conn, err := listener.Accept()
-		// edode : Commanding server cannot connect
-		if err != nil { return }
+		
+		if err != nil { return } // edode : Commanding server cannot connect
 		defer conn.Close()
 		
 		fmt.Println("Accepted connection from ", conn.RemoteAddr())
 		commands, err := srv.ReadCommands(conn, &B)
 		
-		// edode : Commanding server has closed connection
-		if err != nil { return }
+		if err != nil { return } // edode : Commanding server has closed connection
 		fmt.Println("Received commands: ", commands)
 	}()
 	
