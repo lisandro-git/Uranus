@@ -3,6 +3,7 @@ package message
 import (
 	"crypto/cipher"
 	"crypto/rand"
+	"fmt"
 	ccp "golang.org/x/crypto/chacha20poly1305"
 )
 
@@ -14,6 +15,7 @@ func EncryptCCP(msg []byte) []byte {
 	}
 
 	// Encrypt the message and append the ciphertext to the nonce.
+	fmt.Println("	CCP encryption done")
 	return Aead.Seal(nonce, nonce, msg, nil)
 }
 
@@ -26,6 +28,7 @@ func DecryptCCP(encryptedMsg []byte) []byte {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("	CCP decryption done")
 	return plaintext
 }
 

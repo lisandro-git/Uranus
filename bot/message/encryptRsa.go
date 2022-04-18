@@ -49,6 +49,7 @@ func EncryptData(data []byte) []byte {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("	RSA Encryption done")
 	return encryptedBytes
 }
 
@@ -84,5 +85,6 @@ func DecryptData(data []byte) []byte {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("	RSA Decryption done")
 	return decryptedBytes
 }
