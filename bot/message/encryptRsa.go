@@ -17,17 +17,17 @@ func importPublicKey() (*rsa.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	block, _ := pem.Decode(publicKey)
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block containing the key")
 	}
-	
+
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	switch pub := pub.(type) {
 	case *rsa.PublicKey:
 		return pub, nil
@@ -38,18 +38,18 @@ func importPublicKey() (*rsa.PublicKey, error) {
 }
 
 // EncryptData Encrypt message after it has been serialized
-func EncryptData(data []byte) ([]byte) {
+func EncryptData(data []byte) []byte {
 	publicKey, err := importPublicKey()
 	if err != nil {
 		fmt.Println("Error: ", err)
-		return nil;
+		return nil
 	}
 	encryptedBytes, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, data)
-	
+
 	if err != nil {
 		panic(err)
 	}
-	return encryptedBytes;
+	return encryptedBytes
 }
 
 // importPrivateKey Imports private key from file
@@ -58,17 +58,17 @@ func importPrivateKey() (*rsa.PrivateKey, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	block, _ := pem.Decode(privPem)
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block containing the key")
 	}
-	
+
 	priv, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return priv, nil
 }
 
@@ -78,9 +78,9 @@ func DecryptData(data []byte) []byte {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	decryptedBytes, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, data)
-	
+
 	if err != nil {
 		panic(err)
 	}

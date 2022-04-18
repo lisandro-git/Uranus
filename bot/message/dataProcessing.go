@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	UidLength  = 16
-	letterBytes = "0123456789abcdef"
+	UidLength     = 16
+	letterBytes   = "0123456789abcdef"
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
@@ -40,7 +40,7 @@ func (b *Bot) GenerateRandomUid() {
 		remain--
 	}
 	b.Uid = sb.Bytes()
-	return;
+	return
 }
 
 //unmarshal uses msgpack to unmarshal the data
@@ -48,9 +48,9 @@ func (b *Bot) unmarshal(data []byte) {
 	enc := msgpack.NewDecoder(bytes.NewBuffer(data))
 	err := enc.Decode(&b)
 	if err != nil {
-		panic(err);
+		panic(err)
 	}
-	return;
+	return
 }
 
 //DeobfuscateData deobfuscates the data in the following order :
@@ -62,10 +62,10 @@ func (b *Bot) DeobfuscateData(data []byte) {
 	var encodedData []byte = morse.Decode(string(data))
 	encryptedData, err := base32.StdEncoding.DecodeString(string(encodedData))
 	if err != nil {
-		panic(err);
+		panic(err)
 	}
-	b.unmarshal(DecryptData(encryptedData));
-	return;
+	b.unmarshal(DecryptData(encryptedData))
+	return
 }
 
 //marshal uses msgpack to marshal the data
@@ -74,11 +74,10 @@ func (b *Bot) marshal() []byte {
 	enc := msgpack.NewEncoder(&buf).StructAsArray(true)
 	err := enc.Encode(&b)
 	if err != nil {
-		panic(err);
+		panic(err)
 	}
-	return buf.Bytes();
+	return buf.Bytes()
 }
-
 
 //ObfuscateData obfuscates the data in the following order :
 // 1. Convert the data to the marshaled data
@@ -86,7 +85,12 @@ func (b *Bot) marshal() []byte {
 // 3. Convert RSA encrypted data to base32 encoded data
 // 4. Convert base32 encoded data to morse data
 func (b *Bot) ObfuscateData() []byte {
-	var encrypted_data = EncryptData(b.marshal())
-	var encoded_data = base32.StdEncoding.EncodeToString(encrypted_data)
-	return morse.Encode(encoded_data);
+	var encryptedData []byte = EncryptData(b.marshal())
+	if IsConnected {
+		encryptedData = EncryptCCP(b.marshal())
+	} else {
+		encryptedData = EncryptData(b.marshal())
+	}
+	var encoded_data = base32.StdEncoding.EncodeToString(encryptedData)
+	return morse.Encode(encoded_data)
 }
