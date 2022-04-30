@@ -9,8 +9,8 @@ pub mod communication;
 mod morse;
 
 fn main() {
-    //server::encryption::decrypt_message(vec![0]);
-    // communication::server::main();
-    communication::client::main();
+    //server::encryptor::decrypt_message(vec![0]);
+    communication::server::main();
+    //communication::client::main();
     println!("Hello, world!");
 }

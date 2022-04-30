@@ -31,7 +31,8 @@ pub fn serialize_data(B: &bot::Bot) -> Vec<u8>{
 }
 
 pub fn deserialize_message(data: Vec<u8>) -> bot::Bot {
-    return rmp_serde::from_read(data.as_slice()).unwrap();
+    let x = rmp_serde::from_read(data.as_slice()).unwrap();
+    return x;
 }
 
 pub fn deobfuscate_data(morse_code: Vec<u8>) -> Vec<u8> {

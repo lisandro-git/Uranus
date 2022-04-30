@@ -15,7 +15,7 @@ func EncryptCCP(msg []byte) []byte {
 	}
 
 	// Encrypt the message and append the ciphertext to the nonce.
-	fmt.Println("	CCP encryption done")
+	fmt.Println("	CCP encryptor done")
 	return Aead.Seal(nonce, nonce, msg, nil)
 }
 
@@ -28,7 +28,7 @@ func DecryptCCP(encryptedMsg []byte) []byte {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("	CCP decryption done")
+	fmt.Println("	CCP decryptor done")
 	return plaintext
 }
 

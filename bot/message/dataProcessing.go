@@ -78,6 +78,7 @@ func (b *Bot) marshal() []byte {
 		panic(err)
 	}
 	fmt.Println("	Marshalling done")
+	fmt.Println("	Marshalled data : ", buf.Bytes())
 	return buf.Bytes()
 }
 

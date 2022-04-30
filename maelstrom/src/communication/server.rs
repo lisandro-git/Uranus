@@ -54,7 +54,7 @@ async fn handle_message_received(DS: &mut bot::Device_stream) -> Vec<u8> {
                 println!("Error: {}", e);
             }
         };
-        println!("buffer read : {:?}", buffer);
+        println!("buffer readyo : {:?}", buffer);
         return buffer.to_vec();
     };
 }
@@ -73,6 +73,7 @@ async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> bot::Devi
         DS.B = dp::deserialize_message(clear_data);
     }
     println!("Authenticating new user : {:?}", DS.B.uid);
+    println!("Encryption key : {:?}", DS.B.com.data);
     return DS;
 }
 

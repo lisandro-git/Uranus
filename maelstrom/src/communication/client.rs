@@ -30,10 +30,10 @@ async fn client_input (mut s_write: OwnedWriteHalf, mut B: bot::Bot) -> OwnedWri
             .expect("Did not entered a correct string");
         buff.pop();
         B.com.command = buff.clone().into_bytes();
+
         let x = dp::serialize_data(&B);
-        println!("serialized: {:?}", x);
         let mut buffer = dp::obfuscate_data(x);
-        println!("obfuscated data : {}, {:?}", buffer.len(), buffer);
+
         s_write.write_all(&buffer).await.unwrap();
     }
 }
@@ -41,7 +41,7 @@ async fn client_input (mut s_write: OwnedWriteHalf, mut B: bot::Bot) -> OwnedWri
 #[tokio::main]
 pub async fn main() -> io::Result<()> {
     // TCP Stream creation
-    let mut server =  TcpStream::connect(LOCAL).await?;
+    let mut server =  <TcpStream>::connect(LOCAL).await?;
     let (mut reader, mut writer) = server.into_split();
 
     println!("Connecting to server...");
