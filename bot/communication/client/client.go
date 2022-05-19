@@ -36,12 +36,14 @@ func WriteData(server net.Conn, B *msg.Bot) {
 		}
 
 		x, err := server.Write(B.ObfuscateData())
+
 		if err != nil {
 			return
 		} else {
-			fmt.Println("	Sent ", x, " bytes")
+			fmt.Println("	Bytes sent ", x, " bytes")
 		}
 	}
+
 }
 
 func messageInput(m string) []byte {

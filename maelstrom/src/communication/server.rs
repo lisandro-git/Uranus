@@ -20,8 +20,9 @@ use std::{
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 use base32;
+use crate::communication::bot::Device_stream;
 
-use crate::communication::encryption;
+use crate::communication::rsa_encryption;
 use crate::morse;
 use crate::communication::lib;
 use crate::communication::data_processing as dp;
@@ -60,27 +61,36 @@ async fn handle_message_received(DS: &mut bot::Device_stream) -> Vec<u8> {
 }
 
 async fn authenticate_new_user(socket: TcpStream, addr: SocketAddr) -> bot::Device_stream {
-    let mut DS = bot::Device_stream {
+/*    let mut DS = bot::Device_stream {
         stream: socket,
         ip_address: addr,
         authenticated: false,
         connected: true,
+        encryption_key: vec![],
         B: bot::Bot::new(Vec::new(), Vec::new()),
-    };
+    };*/
+    let mut DS = Device_stream::new(
+        socket,
+        addr,
+        false,
+        true,
+        Vec::new(),
+        bot::Bot::new(Vec::new(), Vec::new())
+    );
     let data = handle_message_received(&mut DS).await;
     if DS.connected {
-        let clear_data = dp::deobfuscate_data(data);
-        DS.B = dp::deserialize_message(clear_data);
+        let encryption_key = dp::deobfuscate_data(data, false, &DS.encryption_key);
+        println!("data : {:?}", encryption_key);
+        DS.B = dp::deserialize_message(encryption_key);
+        DS.encryption_key = DS.B.com.data.clone();
     }
-    println!("Authenticating new user : {:?}", DS.B.uid);
-    println!("Encryption key : {:?}", DS.B.com.data);
     return DS;
 }
 
 async fn handle_message_from_client(mut DS: bot::Device_stream, channel_snd: Sender<bot::Bot>, mut channel_rcv: Receiver<bot::Bot>) -> bot::Device_stream {
     let mut buffer: [u8; 4096] = [0; MSG_SIZE];
 
-    loop{
+    loop {
         match DS.stream.try_read(&mut buffer) {
             Ok(n) if n == 0 => {
                 println!("Client {} (username : {:?}) disconnected", DS.ip_address, from_utf8(&DS.B.uid).unwrap());
@@ -88,9 +98,10 @@ async fn handle_message_from_client(mut DS: bot::Device_stream, channel_snd: Sen
                 return DS;
             },
             Ok(recv_bytes) => {
-                println!("Received bytes: {}", recv_bytes);
-                let clear_data = dp::deobfuscate_data(buffer.to_vec());
-                DS.B = dp::deserialize_message(clear_data);
+                println!("  Bytes received : {}", recv_bytes);
+                let marshaled_data = dp::deobfuscate_data(buffer.to_vec(), true, &DS.encryption_key);
+                println!("Received bytes: {:?}", buffer.to_vec());
+                DS.B = dp::deserialize_message(marshaled_data);
                 channel_snd.send(DS.B.clone()).unwrap();
                 buffer.iter_mut().for_each(|x| *x = 0); // reset buffer
             },

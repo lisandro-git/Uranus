@@ -11,7 +11,7 @@ fn read_public_key() -> Rsa<Public> {
     return Rsa::public_key_from_pem(&file_content.as_bytes()).unwrap();
 }
 
-pub fn encrypt_message(serialized_data: Vec<u8>) -> Vec<u8> {
+pub fn encrypt_message_rsa(serialized_data: Vec<u8>) -> Vec<u8> {
     let public_key = read_public_key();
     let mut buf: Vec<u8> = vec![0; public_key.size() as usize];
     let _ = public_key.public_encrypt(serialized_data.as_slice(), &mut buf, Padding::PKCS1).unwrap();
@@ -27,7 +27,7 @@ fn read_private_key() -> Rsa<Private> {
     return Rsa::private_key_from_pem(file_content.as_bytes()).unwrap();
 }
 
-pub fn decrypt_message(data: Vec<u8>) -> Vec<u8> {
+pub fn decrypt_message_rsa(data: Vec<u8>) -> Vec<u8> {
     let private_key = read_private_key();
     let mut buf: Vec<u8> = vec![0; private_key.size() as usize];
     let _ = private_key.private_decrypt(&data, &mut buf, Padding::PKCS1).unwrap();

@@ -15,7 +15,6 @@ func Encode(word string) []byte {
 			result = append(result, v+" "...)
 		}
 	}
-	fmt.Println("	Morse Encoding done")
 	return result
 }
 

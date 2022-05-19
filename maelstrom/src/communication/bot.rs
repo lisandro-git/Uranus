@@ -14,16 +14,25 @@ pub struct Device_stream {
     pub ip_address: std::net::SocketAddr,
     pub authenticated: bool,
     pub connected: bool,
+    pub encryption_key: Vec<u8>,
     pub B: Bot,
 }
 impl Device_stream {
-    pub fn new(sock: TcpStream, address: SocketAddr, uid: Vec<u8>, version: Vec<u8>) -> Device_stream {
+    pub fn new(
+        sock: TcpStream,
+        address: SocketAddr,
+        authenticated: bool,
+        connected: bool,
+        encryption_key: Vec<u8>,
+        B: Bot,
+    ) -> Device_stream {
         Device_stream {
             stream: sock,
             ip_address: address,
             authenticated: false,
             connected: true,
-            B: Bot::new(uid, version),
+            encryption_key: vec![],
+            B: B,
         }
     }
     pub fn erase_data(&mut self) {
