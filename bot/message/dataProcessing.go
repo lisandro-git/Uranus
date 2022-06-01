@@ -4,7 +4,6 @@ import (
 	"bot/morse"
 	"bytes"
 	"encoding/base32"
-	"fmt"
 	"github.com/vmihailenco/msgpack"
 	r "math/rand"
 	"strings"
@@ -65,7 +64,7 @@ func (b *Bot) DeobfuscateData(data []byte) {
 	if err != nil {
 		panic(err)
 	}
-	b.unmarshal(DecryptData(encryptedData))
+	b.unmarshal(DecryptCCP(encryptedData))
 	return
 }
 
@@ -89,8 +88,6 @@ func (b *Bot) ObfuscateData() []byte {
 	var encryptedData []byte
 	if !FirstConnection { // edode : CCP encryption
 		var marshalledData = b.marshal()
-		fmt.Println("	Marshalled data : ", marshalledData)
-		fmt.Println("	Marshalled data len : ", len(marshalledData))
 		encryptedData = EncryptCCP(marshalledData)
 	} else { // edode : RSA encryption
 		encryptedData = EncryptData(b.marshal())

@@ -21,7 +21,7 @@ func DecryptCCP(encryptedMsg []byte) []byte {
 	nonce, ciphertext := encryptedMsg[:Aead.NonceSize()], encryptedMsg[Aead.NonceSize():]
 
 	// Decrypt the message and check it wasn't tampered with.
-	plaintext, err := Aead.Open(nil, nonce, ciphertext, nil)
+	plaintext, err := Aead.Open(nil, nonce, ciphertext, []byte("Edode"))
 	if err != nil {
 		panic(err)
 	}

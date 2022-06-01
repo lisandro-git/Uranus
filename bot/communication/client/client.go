@@ -4,6 +4,7 @@ import (
 	msg "bot/message"
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -58,5 +59,22 @@ func messageInput(m string) []byte {
 		} else {
 			return []byte(strings.TrimSuffix(line, "\n"))
 		}
+	}
+}
+
+func ReadData(conn net.Conn, B *msg.Bot) (msg.Bot, error) {
+	var buffer [4096]byte
+	for {
+		read, err := conn.Read(buffer[:])
+		fmt.Println("Receivded data")
+		if err != nil {
+			if err == io.EOF {
+				return msg.Bot{}, nil
+			} else {
+				return msg.Bot{}, err
+			}
+		}
+		B.DeobfuscateData(buffer[:read])
+		fmt.Println("deobfuscated data : ", B)
 	}
 }

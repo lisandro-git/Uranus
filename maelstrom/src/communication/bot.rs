@@ -8,9 +8,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Device_stream {
-    pub stream: TcpStream,
     pub ip_address: std::net::SocketAddr,
     pub authenticated: bool,
     pub connected: bool,
@@ -19,7 +18,6 @@ pub struct Device_stream {
 }
 impl Device_stream {
     pub fn new(
-        sock: TcpStream,
         address: SocketAddr,
         authenticated: bool,
         connected: bool,
@@ -27,7 +25,6 @@ impl Device_stream {
         B: Bot,
     ) -> Device_stream {
         Device_stream {
-            stream: sock,
             ip_address: address,
             authenticated: false,
             connected: true,

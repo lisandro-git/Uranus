@@ -21,18 +21,19 @@ func StartLocalServer() net.Listener {
 		os.Exit(1)
 	}
 	fmt.Println("Listening on " + LOCALHOST + LOCALPORT)
-	return listener;
+	return listener
 }
 
 func ReadCommands(conn net.Conn, B *msg.Bot) (msg.Bot, error) {
 	var buffer [4096]byte
 	for {
 		read, err := conn.Read(buffer[:])
+		fmt.Println("Receivded data")
 		if err != nil {
 			if err == io.EOF {
-				return msg.Bot{}, nil;
+				return msg.Bot{}, nil
 			} else {
-				return msg.Bot{}, err;
+				return msg.Bot{}, err
 			}
 		}
 		B.DeobfuscateData(buffer[:read])

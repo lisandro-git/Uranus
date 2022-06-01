@@ -41,16 +41,14 @@ pub fn deobfuscate_data(morse_code: Vec<u8>, authenticated: bool, ccp_key: &Vec<
         base32::Alphabet::RFC4648 { padding: true },
         from_utf8(base32_data.as_slice()).unwrap()).unwrap();
     return if authenticated { // edode : ChaCha20Poly1305 decryption
-        let marshalled_data = ChaCha20Poly1305_encryption::decrypt(ccp_key, encrypted_data);
-        println!("{:?}", marshalled_data);
-        marshalled_data
+        ChaCha20Poly1305_encryption::decrypt(ccp_key, encrypted_data)
     } else { // edode : RSA decryption
         remove_trailing_zeros(rsa_encryption::decrypt_message_rsa(encrypted_data))
     }
 }
 
-pub fn obfuscate_data(data: Vec<u8>) -> Vec<u8> {
-    let encrypted_data = rsa_encryption::encrypt_message_rsa(data);
+pub fn obfuscate_data(data: Vec<u8>, ccp_key: &Vec<u8>) -> Vec<u8> {
+    let encrypted_data = ChaCha20Poly1305_encryption::encrypt(ccp_key, data);
     let base32_data = base32::encode(
         base32::Alphabet::RFC4648 { padding: true },
         &encrypted_data);
