@@ -16,7 +16,6 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_bytes::{deserialize, serialize};
 
-use super::data_processing as dp;
 use super::bot;
 
 const LOCAL: &str = "127.0.0.1:6969";

