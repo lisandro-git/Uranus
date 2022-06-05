@@ -13,12 +13,10 @@ fn main() -> std::io::Result<()> {
     let timestamp: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
 
     let x = vec![
-        block::Block_Header::new(version, prev_hash, timestamp)
+        block::Block_Header::new(version, prev_hash, timestamp, 0)
     ];
 
-    let y = vec![
-        block::Block_Data::new(15)
-    ];
+    
 
     /*let serialized: Vec<u8> = match serialize(&y) {
         Ok(y) => y,

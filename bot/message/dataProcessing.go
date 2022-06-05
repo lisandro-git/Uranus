@@ -54,7 +54,7 @@ func (b *Bot) unmarshal(data []byte) {
 }
 
 //DeobfuscateData deobfuscates the data in the following order :
-// 1. Convert morse data to base32 encoded data
+// 1. Convert encoder data to base32 encoded data
 // 2. Convert base32 encoded data to RSA or ChaChaPoly1305 encrypted data
 // 3. Convert RSA encrypted data to the marshaled data
 // 4. Convert the marshaled data to the original data (Bot)
@@ -83,7 +83,7 @@ func (b *Bot) marshal() []byte {
 // 1. Convert the data to the marshaled data
 // 2. Convert the marshaled data to RSA or ChaChaPoly1305 encrypted data
 // 3. Convert RSA encrypted data to base32 encoded data
-// 4. Convert base32 encoded data to morse data
+// 4. Convert base32 encoded data to encoder data
 func (b *Bot) ObfuscateData() []byte {
 	var encryptedData []byte
 	if !FirstConnection { // edode : CCP encryption

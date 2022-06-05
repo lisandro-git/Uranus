@@ -13,7 +13,7 @@ import (
 
 // importPublicKey Parse public key from file
 func importPublicKey() (*rsa.PublicKey, error) {
-	publicKey, err := ioutil.ReadFile("../public.key")
+	publicKey, err := ioutil.ReadFile("../key_files/c2_bot_public.key")
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func EncryptData(data []byte) []byte {
 
 // importPrivateKey Imports private key from file
 func importPrivateKey() (*rsa.PrivateKey, error) {
-	privPem, err := ioutil.ReadFile("../private.key")
+	privPem, err := ioutil.ReadFile("../key_files/c2_bot_private.key")
 	if err != nil {
 		log.Fatal(err)
 	}

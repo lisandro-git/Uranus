@@ -4,7 +4,7 @@
 #![allow(unused)]
 extern crate core;
 
-pub mod morse;
+pub mod encoder;
 pub mod encryption;
 pub mod message;
 pub mod blockchain;

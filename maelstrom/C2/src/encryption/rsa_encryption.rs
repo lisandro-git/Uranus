@@ -4,9 +4,9 @@ use std::io::{Read, Write};
 use openssl::pkey::{Private, Public};
 
 fn read_public_key() -> Rsa<Public> {
-    let mut key_file = File::open("../../../../public.key").unwrap();
+    let mut public_key = File::open("../../key_files/c2_bot_public.key").unwrap();
     let mut file_content = String::new();
-    key_file.read_to_string(&mut file_content);
+    public_key.read_to_string(&mut file_content);
 
     return Rsa::public_key_from_pem(&file_content.as_bytes()).unwrap();
 }
@@ -20,9 +20,9 @@ pub fn encrypt_message_rsa(serialized_data: Vec<u8>) -> Vec<u8> {
 }
 
 fn read_private_key() -> Rsa<Private> {
-    let mut key_file = File::open("../../../../private.key").unwrap();
+    let mut private_key = File::open("../../key_files/c2_bot_private.key").unwrap();
     let mut file_content = String::new();
-    key_file.read_to_string(&mut file_content);
+    private_key.read_to_string(&mut file_content);
 
     return Rsa::private_key_from_pem(file_content.as_bytes()).unwrap();
 }

