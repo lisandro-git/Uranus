@@ -11,8 +11,5 @@ pub mod blockchain;
 pub mod communication;
 
 fn main() {
-    //server::encryptor::decrypt_message(vec![0]);
-    communication::server::main();
-    //communication::client::main();
-    println!("Hello, world!");
+    communication::c2::main();
 }
