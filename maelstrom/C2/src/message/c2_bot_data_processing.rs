@@ -23,11 +23,11 @@ pub fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     return res.to_owned();
 }
 
-pub fn serialize_rmp(B: &communication::bot::Bot) -> Vec<u8>{
+pub fn serialize_rmp(B: &communication::c2::Bot) -> Vec<u8>{
     return rmp_serde::to_vec(&B).unwrap();
 }
 
-pub fn deserialize_rmp(data: Vec<u8>) -> communication::bot::Bot {
+pub fn deserialize_rmp(data: Vec<u8>) -> communication::c2::Bot {
     return rmp_serde::from_read(data.as_slice()).unwrap();
 }
 

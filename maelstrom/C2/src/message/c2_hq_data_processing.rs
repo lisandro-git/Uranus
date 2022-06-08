@@ -1,4 +1,4 @@
-use crate::communication::bot::Bot;
+use crate::communication::c2::Bot;
 //serialize using bincode
 
 pub fn serialize_bincode(B: &Bot) -> Vec<u8>{

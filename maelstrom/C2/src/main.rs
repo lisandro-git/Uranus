@@ -11,5 +11,5 @@ pub mod blockchain;
 pub mod communication;
 
 fn main() {
-    communication::c2::main();
+    communication::server::main();
 }

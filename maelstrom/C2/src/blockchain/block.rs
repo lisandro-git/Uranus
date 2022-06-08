@@ -19,8 +19,8 @@ use std::{
     str::{EscapeDebug, from_utf8}
 };
 use serde::{Deserialize, Serialize};
-use crate::communication::bot;
-use crate::communication::bot::{Bot, Device_stream};
+use crate::communication::c2;
+use crate::communication::c2::{Bot, Device_stream};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Block_Header {
@@ -60,10 +60,10 @@ impl Block {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Block_Data {
-    data: bot::Device_stream,
+    data: c2::Device_stream,
 }
 impl Block_Data {
-    pub fn new(data: bot::Device_stream) -> Block_Data {
+    pub fn new(data: c2::Device_stream) -> Block_Data {
         Block_Data {
             data: data,
         }

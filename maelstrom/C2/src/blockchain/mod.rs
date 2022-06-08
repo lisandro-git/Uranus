@@ -2,4 +2,4 @@ mod sandbox;
 mod hash;
 mod blockchain;
 mod block;
-use super::communication::bot::Device_stream;
+use super::communication::c2::Device_stream;
