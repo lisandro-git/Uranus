@@ -12,20 +12,14 @@ use crate::communication::lib;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Cohort {
-    pub authenticated: bool,
-    pub connected: bool,
-    pub encryption_key: Vec<u8>,
-    pub hq_id: Vec<u8>,
+    pub c2_id: Vec<u8>,
     pub is_hq: bool,
     pub C2_Stream: Vec<self::Device_stream>,
 }
 impl Cohort {
     pub fn new() -> Cohort {
         Cohort {
-            authenticated: false,
-            connected: false,
-            encryption_key: vec![],
-            hq_id: lib::generate_uid(),
+            c2_id: lib::generate_uid(),
             is_hq: false,
             C2_Stream: Vec::new(),
         }
@@ -33,7 +27,7 @@ impl Cohort {
     pub fn append_C2_Stream(&mut self, C2_Stream: self::Device_stream) {
         self.C2_Stream.push(C2_Stream);
     }
-    pub fn promot_to_hq(&mut self) {
+    pub fn promote_to_hq(&mut self) {
         self.is_hq = true;
     }
 }
