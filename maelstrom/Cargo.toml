@@ -6,14 +6,19 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-futures = "0.3.21"
 # Client / Server communication
+futures = "0.3.21"
 tokio = { version = "1.12.0", features = ["full"] }
+# Serialization
 serde = { version = "1.0.136", features = ["derive"] }
 rmp-serde = "1.0.0"
 bincode = "1.2.1"
 serde_bytes = "0.11.5"
-openssl = { version = "0.10.38", features = ["vendored"] }
+# Data processing
+chacha20poly1305 = { version = "0.9.0", features = ["heapless"] }
 base32 = "0.4.0"
+openssl = { version = "0.10.38", features = ["vendored"] }
+sha2 = "0.10.2"
+# Other
 rand = "0.8.5"
-chacha20poly1305 = { version = "0.9.0", features =["heapless"] }
+deepsize = "0.2.0"

