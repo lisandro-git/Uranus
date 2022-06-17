@@ -4,12 +4,15 @@
 #![allow(unused)]
 extern crate core;
 
+use std::thread;
+
 pub mod encoder;
 pub mod encryption;
 pub mod message;
-pub mod blockchain;
 pub mod communication;
+pub mod blockchain;
 
 fn main() {
+    //communication::sandbox::main();
     communication::server::main();
 }

@@ -22,3 +22,5 @@ sha2 = "0.10.2"
 # Other
 rand = "0.8.5"
 deepsize = "0.2.0"
+leveldb = "0.8.6"
+tempdir = "0.3.7"

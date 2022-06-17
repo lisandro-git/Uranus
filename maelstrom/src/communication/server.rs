@@ -34,8 +34,6 @@ use crate::{
     communication::lib,
     encryption as enc,
     message as msg,
-    blockchain,
-    blockchain::blockchain::Hashing
 };
 use super::c2;
 
