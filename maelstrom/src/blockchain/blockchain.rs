@@ -38,7 +38,6 @@ impl Hashing for Blockchain {
         return [0; 32]
     }
     fn get_last_block_hash(&self) -> [u8; 32] {
-
-        return [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        return self.blocks.last().unwrap().header.prev_block_hash;
     }
 }
