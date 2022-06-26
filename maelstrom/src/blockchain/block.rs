@@ -21,7 +21,7 @@ pub trait Genesis {
     fn genesis_block() -> Self;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Block {
     pub magic_number: u32,
     pub size: u32,
@@ -29,17 +29,17 @@ pub struct Block {
     pub data: BlockData,
 }
 impl Block {
-    pub fn new(BH: BlockHeader, BD: BlockData) -> Block {
+    pub fn new() -> Block {
         let mut B = Block {
             magic_number: 0xF14ED0DE,
             size: 0, // edode : size of the entire block
-            header: BH,
-            data: BD,
+            header: self::BlockHeader::new(),
+            data: self::BlockData::new(),
         };
         B.size = self::Block::get_block_size(&B);
         return B;
     }
-    pub fn create_block(&mut self, BH: BlockHeader, BD: BlockData) {
+    pub fn update_block(&mut self, BH: BlockHeader, BD: BlockData) {
         self.header = BH;
         self.data = BD;
         self.size = self.get_block_size();
@@ -50,10 +50,7 @@ impl Block {
 }
 impl Genesis for Block { // lisandro : can be merged with new()
     fn genesis_block() -> Self {
-        Block::new(
-            self::BlockHeader::new(),
-            self::BlockData::new(),
-        )
+        return Block::new();
     }
 }
 

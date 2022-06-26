@@ -12,12 +12,12 @@ pub trait Hashing {
 }
 #[derive(Debug)]
 pub struct Blockchain {
-    pub blocks: Vec<block::Block>,
+    pub blocks: Vec<Block>,
 }
 impl Blockchain {
-    pub fn new() -> Blockchain {
+    pub fn new(genesis_block: Block) -> Blockchain {
         return Blockchain {
-            blocks: vec![Block::genesis_block()],
+            blocks: vec![genesis_block],
         };
     }
     pub fn add_block(&mut self, block: block::Block) {
