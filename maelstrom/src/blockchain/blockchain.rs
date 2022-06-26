@@ -1,15 +1,16 @@
+use std::cell::Ref;
 use std::ptr::addr_of;
 use super::block;
 use sha2::{Sha512, Digest};
 use bincode;
 use crate::blockchain::block::{Block, Genesis};
+use std::ops::{Deref, DerefMut};
 
 pub trait Hashing {
     fn encode_block(&self) -> Vec<u8>;
     fn hash(&self) -> [u8; 32];
-    fn get_last_block_hash(&self) -> [u8; 32];
 }
-
+#[derive(Debug)]
 pub struct Blockchain {
     pub blocks: Vec<block::Block>,
 }
@@ -21,6 +22,20 @@ impl Blockchain {
     }
     pub fn add_block(&mut self, block: block::Block) {
         self.blocks.push(block);
+    }
+    pub fn get_last_block_hash(&self) -> [u8; 32] {
+        return self.blocks.last().unwrap().header.prev_block_hash;
+    }
+}
+impl Deref for Blockchain {
+    type Target = Vec<block::Block>;
+    fn deref(&self) -> &Self::Target {
+        return &self.blocks;
+    }
+}
+impl DerefMut for Blockchain {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        return &mut self.blocks;
     }
 }
 impl Hashing for Blockchain {
@@ -37,7 +52,5 @@ impl Hashing for Blockchain {
         // return hash;
         return [0; 32]
     }
-    fn get_last_block_hash(&self) -> [u8; 32] {
-        return self.blocks.last().unwrap().header.prev_block_hash;
-    }
+
 }

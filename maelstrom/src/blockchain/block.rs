@@ -39,7 +39,7 @@ impl Block {
         B.size = self::Block::get_block_size(&B);
         return B;
     }
-    pub fn create_block(&mut self, BD: BlockData, BH: BlockHeader) {
+    pub fn create_block(&mut self, BH: BlockHeader, BD: BlockData) {
         self.header = BH;
         self.data = BD;
         self.size = self.get_block_size();
@@ -48,7 +48,7 @@ impl Block {
         return (self.header.deep_size_of() as u32) + (self.data.deep_size_of() as u32);
     }
 }
-impl Genesis for Block {
+impl Genesis for Block { // lisandro : can be merged with new()
     fn genesis_block() -> Self {
         Block::new(
             self::BlockHeader::new(),
@@ -57,7 +57,7 @@ impl Genesis for Block {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, DeepSizeOf)]
+#[derive(Debug, Serialize, Deserialize, DeepSizeOf, Clone)]
 pub struct BlockHeader {
     pub version: [u8; 4],
     pub prev_block_hash: [u8; 32],
@@ -73,18 +73,18 @@ impl BlockHeader {
             timestamp: [0; 8],
         }
     }
-    pub fn create_block_header(&mut self, B: &Blockchain) {
+    pub fn create_block_header(&mut self, last_block_hash: [u8; 32]) {
         self.version = [0; 4];
-        self.prev_block_hash = Hashing::get_last_block_hash(B);
+        self.prev_block_hash = last_block_hash;
         self.block_id += 1;
         self.timestamp = self::BlockHeader::update_timestamp();
     }
-    pub fn update_timestamp() -> [u8; 8] {
+    fn update_timestamp() -> [u8; 8] {
         return [0, 0, 0, 0, 0, 0, 0, 0];
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, DeepSizeOf)]
+#[derive(Debug, Serialize, Deserialize, DeepSizeOf, Clone)]
 pub struct BlockData {
     bot: c2::Device_stream,
 }
@@ -99,5 +99,8 @@ impl BlockData {
                 c2::Bot::new(Vec::new(), Vec::new())
             ),
         }
+    }
+    pub fn create_block_data(&mut self, DS: c2::Device_stream) {
+        self.bot = DS;
     }
 }

