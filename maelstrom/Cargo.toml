@@ -18,9 +18,10 @@ serde_bytes = "0.11.5"
 chacha20poly1305 = { version = "0.9.0", features = ["heapless"] }
 base32 = "0.4.0"
 openssl = { version = "0.10.38", features = ["vendored"] }
-sha2 = "0.10.2"
+sha3 = "0.10.1"
 # Other
 rand = "0.8.5"
 deepsize = "0.2.0"
 leveldb = "0.8.6"
 tempdir = "0.3.7"
+hex = "0.4.3"

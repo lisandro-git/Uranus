@@ -197,6 +197,11 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     let (chn_bot_tx, mut _chn_bot_rcv) = broadcast::channel(64);
     let (chn_c2_tx, mut _chn_c2_rx) = broadcast::channel(64);
 
+    let c2_input_rx = chn_c2_tx.clone();
+    thread::spawn(move || {
+        client_input(c2_input_rx);
+    });
+
     let mut Co: c2::Cohort = c2::Cohort::new();
 
     let mut Blk: Block = Block::genesis_block();
@@ -204,11 +209,6 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
     let Blkchain_arc = Arc::new(Mutex::new(Blkchain));
     let Blk_arc = Arc::new(Mutex::new(Blk));
-
-    let c2_input_rx = chn_c2_tx.clone();
-    thread::spawn(move || {
-        client_input(c2_input_rx);
-    });
 
     let mut bot_rx = chn_bot_tx.subscribe();
     tokio::spawn(async move {
@@ -220,7 +220,6 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
         // edode : Accepting the new bot
         let (socket, addr) = listener.accept().await?;
 
-
         println!("New user connected: {}", addr);
 
         Co.append_C2_Stream(authenticate_new_user(&socket, addr).await);
@@ -231,7 +230,6 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
         let mut co_clone = Co.C2_Stream.last().unwrap().clone();
 
-        //let mut bot_rx = chn_bot_tx.subscribe();
         let bot_tx = chn_bot_tx.clone();
 
         let mut c2_rx = chn_c2_tx.subscribe();
