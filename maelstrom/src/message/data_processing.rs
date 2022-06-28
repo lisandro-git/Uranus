@@ -1,8 +1,12 @@
 use std::str::from_utf8;
-use rmp_serde::{Deserializer, Serializer};
-use crate::encoder;
-use crate::communication;
-use crate::encryption as enc;
+use openssl::{
+    pkey::HasPublic,
+    rsa::Rsa
+};
+use crate::{
+    encoder,
+    encryption as enc,
+};
 
 pub fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     let mut transit: Vec<u8> = vec![];
@@ -19,23 +23,15 @@ pub fn remove_trailing_zeros(data: Vec<u8>) -> Vec<u8> {
     for t in transit.iter().rev() {
         res.push(*t);
     }
-    //res.push(0)
     return res.to_owned();
-}
-
-pub fn serialize_rmp(B: &communication::c2::Bot) -> Vec<u8>{
-    return rmp_serde::to_vec(&B).unwrap();
-}
-
-pub fn deserialize_rmp(data: Vec<u8>) -> communication::c2::Bot {
-    return rmp_serde::from_read(data.as_slice()).unwrap();
 }
 
 pub fn deobfuscate_data(morse_code: Vec<u8>, authenticated: bool, ccp_key: &Vec<u8>) -> Vec<u8> {
     let base32_data = encoder::morse::decode(remove_trailing_zeros(morse_code));
     let encrypted_data = base32::decode(
         base32::Alphabet::RFC4648 { padding: true },
-        from_utf8(base32_data.as_slice()).unwrap()).unwrap();
+        from_utf8(base32_data.as_slice()).unwrap()
+    ).unwrap();
     return if authenticated { // edode : ChaCha20Poly1305 decryption
         enc::ChaCha20Poly1305_encryption::decrypt(ccp_key, encrypted_data)
     } else { // edode : RSA decryption
@@ -47,7 +43,8 @@ pub fn obfuscate_data(data: Vec<u8>, ccp_key: &Vec<u8>) -> Vec<u8> {
     let encrypted_data = enc::ChaCha20Poly1305_encryption::encrypt(ccp_key, data);
     let base32_data = base32::encode(
         base32::Alphabet::RFC4648 { padding: true },
-        &encrypted_data);
+        &encrypted_data
+    );
     let morse_code = encoder::morse::encode(base32_data);
     return morse_code.into_bytes();
 }

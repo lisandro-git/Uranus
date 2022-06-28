@@ -63,7 +63,8 @@ impl Hashing for Block {
         return bincode::serialize(&self).unwrap();
     }
     fn calculate_hash<T: Hash>(&self, previous_block: &T) -> String {
-        let serialized_block = self.serialize_block();
+        let serialized_block = crate::message::serialization::serialize_bincode(&self);
+        //let serialized_block = self.serialize_block();
         let mut hasher = Sha3_512::new();
         hasher.update(&serialized_block);
         let result = hasher.finalize();
