@@ -1,7 +1,11 @@
-use openssl::rsa::{Rsa, Padding};
-use std::fs::File;
-use std::io::{Read, Write};
-use openssl::pkey::{Private, Public};
+use openssl::{
+    rsa::{Rsa, Padding},
+    pkey::{Private, Public}
+};
+use std::{
+    fs::File,
+    io::{Read, Write}
+};
 
 fn read_public_key() -> Rsa<Public> {
     let mut public_key = File::open("../key_files/c2_bot_public.key").unwrap();
@@ -13,10 +17,10 @@ fn read_public_key() -> Rsa<Public> {
 
 pub fn encrypt_message_rsa(serialized_data: Vec<u8>) -> Vec<u8> {
     let public_key = read_public_key();
-    let mut buf: Vec<u8> = vec![0; public_key.size() as usize];
-    let _ = public_key.public_encrypt(serialized_data.as_slice(), &mut buf, Padding::PKCS1).unwrap();
+    let mut ciphertext: Vec<u8> = vec![0; public_key.size() as usize];
+    public_key.public_encrypt(serialized_data.as_slice(), &mut ciphertext, Padding::PKCS1).unwrap();
 
-    return buf;
+    return ciphertext;
 }
 
 fn read_private_key() -> Rsa<Private> {
@@ -29,8 +33,8 @@ fn read_private_key() -> Rsa<Private> {
 
 pub fn decrypt_message_rsa(data: Vec<u8>) -> Vec<u8> {
     let private_key = read_private_key();
-    let mut buf: Vec<u8> = vec![0; private_key.size() as usize];
-    let _ = private_key.private_decrypt(&data, &mut buf, Padding::PKCS1).unwrap();
+    let mut ciphertext: Vec<u8> = vec![0; private_key.size() as usize];
+    private_key.private_decrypt(&data, &mut ciphertext, Padding::PKCS1).unwrap();
 
-    return buf.to_owned();
+    return ciphertext;
 }
