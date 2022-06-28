@@ -33,7 +33,7 @@ impl Cohort {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
+#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf, Hash)]
 pub struct Device_stream {
     pub ip_address: String,
     pub authenticated: bool,
@@ -65,7 +65,7 @@ impl Device_stream {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
+#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf, Hash)]
 pub struct Bot {
     #[serde(with = "serde_bytes")]
     pub uid: Vec<u8>,
@@ -86,7 +86,7 @@ impl Bot {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
+#[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf, Hash)]
 pub struct Commands {
     #[serde(with = "serde_bytes")]
     pub command: Vec<u8>,

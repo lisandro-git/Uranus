@@ -4,24 +4,31 @@ use std::{
 };
 use serde::{Deserialize, Serialize};
 use bincode;
-use sha2::{
-    Sha512,
+use sha3::{
     Digest,
-    digest::Update
+    Sha3_512
 };
 use deepsize::DeepSizeOf;
-use crate::{
-    communication::c2,
-    communication::c2::{Bot, Device_stream},
-    blockchain::blockchain::Hashing
-};
+use crate::communication::c2;
 use super::blockchain::Blockchain;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::ptr::hash;
+use hex;
+use std::time::SystemTime;
+
+const VERSION: &str = "0.1.0";
 
 pub trait Genesis {
     fn genesis_block() -> Self;
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+pub trait Hashing {
+    fn serialize_block(&self) -> Vec<u8>;
+    fn calculate_hash<T: Hash>(&self, t: &T) -> String;
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Hash)]
 pub struct Block {
     pub magic_number: u32,
     pub size: u32,
@@ -53,35 +60,56 @@ impl Genesis for Block { // lisandro : can be merged with new()
         return Block::new();
     }
 }
+impl Hashing for Block {
+    fn serialize_block(&self) -> Vec<u8> {
+        //use bincode to serialize the block
+        return bincode::serialize(&self).unwrap();
+    }
+    fn calculate_hash<T: Hash>(&self, previous_block: &T) -> String {
+        let serialized_block = self.serialize_block();
+        let mut hasher = Sha3_512::new();
+        hasher.update(&serialized_block);
+        let result = hasher.finalize();
+        let hashed_block = hex::encode(&result[..]);
 
-#[derive(Debug, Serialize, Deserialize, DeepSizeOf, Clone)]
+        let mut hasher = Sha3_512::new();
+        hasher.update(&hashed_block);
+        let hashed_hash = hasher.finalize();
+        return hex::encode(&hashed_hash[..]);
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, DeepSizeOf, Clone, Hash)]
 pub struct BlockHeader {
-    pub version: [u8; 4],
-    pub prev_block_hash: [u8; 32],
+    pub version: String,
+    pub prev_block_hash: String,
     pub block_id: u64,
-    pub timestamp: [u8; 8],
+    pub timestamp: u64,
 }
 impl BlockHeader {
     pub fn new() -> BlockHeader {
         return BlockHeader {
-            version: [0; 4],
-            prev_block_hash: [0; 32],
+            version: BlockHeader::get_version(),
+            prev_block_hash: String::new(),
             block_id: 0,
-            timestamp: [0; 8],
+            timestamp: self::BlockHeader::update_timestamp(),
         }
     }
-    pub fn create_block_header(&mut self, last_block_hash: [u8; 32]) {
-        self.version = [0; 4];
+    pub fn create_block_header(&mut self, last_block_hash: String) {
+        self.version = self::BlockHeader::get_version();
         self.prev_block_hash = last_block_hash;
         self.block_id += 1;
         self.timestamp = self::BlockHeader::update_timestamp();
     }
-    fn update_timestamp() -> [u8; 8] {
-        return [0, 0, 0, 0, 0, 0, 0, 0];
+    fn update_timestamp() -> u64 {
+        return SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+    }
+    fn get_version() -> String {
+        return VERSION.to_string();
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, DeepSizeOf, Clone)]
+#[derive(Debug, Serialize, Deserialize, DeepSizeOf, Clone, Hash)]
 pub struct BlockData {
     bot: c2::Device_stream,
 }
