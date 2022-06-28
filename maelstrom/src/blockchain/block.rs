@@ -9,16 +9,15 @@ use sha3::{
     Sha3_512
 };
 use deepsize::DeepSizeOf;
-use crate::{
-    communication::c2,
-    communication::c2::{Bot, Device_stream},
-};
+use crate::communication::c2;
 use super::blockchain::Blockchain;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::ptr::hash;
 use hex;
 use std::time::SystemTime;
+
+const VERSION: &str = "0.1.0";
 
 pub trait Genesis {
     fn genesis_block() -> Self;
@@ -82,7 +81,7 @@ impl Hashing for Block {
 
 #[derive(Debug, Serialize, Deserialize, DeepSizeOf, Clone, Hash)]
 pub struct BlockHeader {
-    pub version: [u8; 4],
+    pub version: String,
     pub prev_block_hash: String,
     pub block_id: u64,
     pub timestamp: u64,
@@ -90,20 +89,23 @@ pub struct BlockHeader {
 impl BlockHeader {
     pub fn new() -> BlockHeader {
         return BlockHeader {
-            version: [0; 4],
+            version: BlockHeader::get_version(),
             prev_block_hash: String::new(),
             block_id: 0,
             timestamp: self::BlockHeader::update_timestamp(),
         }
     }
     pub fn create_block_header(&mut self, last_block_hash: String) {
-        self.version = [0; 4];
+        self.version = self::BlockHeader::get_version();
         self.prev_block_hash = last_block_hash;
         self.block_id += 1;
         self.timestamp = self::BlockHeader::update_timestamp();
     }
     fn update_timestamp() -> u64 {
         return SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+    }
+    fn get_version() -> String {
+        return VERSION.to_string();
     }
 }
 
