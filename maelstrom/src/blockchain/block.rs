@@ -1,21 +1,18 @@
+use super::blockchain;
+use crate::communication::c2;
 use std::{
     io,
     net::SocketAddr,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    ptr::hash,
+    time::SystemTime
 };
-use serde::{Deserialize, Serialize};
-use bincode;
-use sha3::{
-    Digest,
-    Sha3_512
-};
-use deepsize::DeepSizeOf;
-use crate::communication::c2;
-use super::blockchain::Blockchain;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use std::ptr::hash;
 use hex;
-use std::time::SystemTime;
+use bincode;
+use deepsize::DeepSizeOf;
+use sha3::{Digest, Sha3_512};
+use serde::{Deserialize, Serialize};
 
 const VERSION: &str = "0.1.0";
 
