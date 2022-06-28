@@ -18,6 +18,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::ptr::hash;
 use hex;
+use std::time::SystemTime;
 
 pub trait Genesis {
     fn genesis_block() -> Self;
@@ -84,7 +85,7 @@ pub struct BlockHeader {
     pub version: [u8; 4],
     pub prev_block_hash: String,
     pub block_id: u64,
-    pub timestamp: [u8; 8],
+    pub timestamp: u64,
 }
 impl BlockHeader {
     pub fn new() -> BlockHeader {
@@ -92,7 +93,7 @@ impl BlockHeader {
             version: [0; 4],
             prev_block_hash: String::new(),
             block_id: 0,
-            timestamp: [0; 8],
+            timestamp: self::BlockHeader::update_timestamp(),
         }
     }
     pub fn create_block_header(&mut self, last_block_hash: String) {
@@ -101,8 +102,8 @@ impl BlockHeader {
         self.block_id += 1;
         self.timestamp = self::BlockHeader::update_timestamp();
     }
-    fn update_timestamp() -> [u8; 8] {
-        return [0, 0, 0, 0, 0, 0, 0, 0];
+    fn update_timestamp() -> u64 {
+        return SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
     }
 }
 
