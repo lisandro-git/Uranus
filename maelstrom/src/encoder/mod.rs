@@ -1,1 +1,1 @@
-pub(crate) mod morse;
+pub mod morse;

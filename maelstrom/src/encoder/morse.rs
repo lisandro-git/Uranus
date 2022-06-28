@@ -1,8 +1,8 @@
 pub fn decode(input: Vec<u8>) -> Vec<u8> {
     let input_string = String::from_utf8(input).unwrap();
-
     let text = input_string.replace("*", ".").trim().to_string();
     let mut result = String::new();
+
     let words = text.split("/");
     for word in words {
         let chars = word.trim().split(" ");
