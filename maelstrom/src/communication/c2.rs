@@ -1,15 +1,8 @@
-extern crate core;
-use crate::communication::lib;
-
-use tokio::{
-    net::{TcpListener, TcpStream},
-};
-use std::{
-    net::SocketAddr,
-};
-use serde::{Deserialize, Serialize};
-use rmp_serde::{Deserializer, Serializer};
+use super::lib;
+use std::net::SocketAddr;
 use deepsize::DeepSizeOf;
+use serde::{Deserialize, Serialize};
+use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Debug, Clone, Serialize, Deserialize, DeepSizeOf)]
 pub struct Cohort {
