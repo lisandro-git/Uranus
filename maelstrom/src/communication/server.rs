@@ -153,7 +153,7 @@ async fn receive_bot_data(
     loop {
         match bot_rx.try_recv() {
             Ok(mut received_data) => {
-                println!("Received data from channel : {:?} from : {:?}", received_data.B, received_data.ip_address);
+                //println!("Received data from channel : {:?} from : {:?}", received_data.B, received_data.ip_address);
 
                 if let Ok(mut Blkchain) = arc_Blkchain.lock() {
                     if let Ok(mut Blk) = arc_Blk.lock() { // lisandro : clearable
@@ -163,9 +163,9 @@ async fn receive_bot_data(
                         BD.create_block_data(received_data);
                         Blk.update_block(BH, BD);
                         Blkchain.add_block(Blk.clone());
-                        println!("Block added to the blockchain");
+                        //println!("Block added to the blockchain");
                     }
-                    println!("{:?}", Blkchain);
+                    //println!("{:?}", Blkchain);
                 }
             },
             Err(err) => {

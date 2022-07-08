@@ -14,6 +14,7 @@ impl Blockchain {
     pub fn new(mut genesis_block: Block) -> Blockchain {
         genesis_block.header.prev_block_hash = from_utf8(&[0u8; 32]).unwrap().to_string();
         database::write_db(&database::D, genesis_block.header.block_id.clone() as i32, genesis_block.serialize_block().as_slice());
+        println!("Block : {:?} added to the blockchain", genesis_block.header.block_id);
         return Blockchain {
             blocks: vec![genesis_block],
         };
