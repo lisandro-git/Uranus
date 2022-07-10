@@ -9,6 +9,7 @@ use leveldb::{
     options::{Options, WriteOptions, ReadOptions}
 };
 
+/// Creating the database and the options for the database
 lazy_static!(
     pub static ref D: Database<i32> = {
         let mut options = Options::new();
@@ -25,17 +26,19 @@ lazy_static!(
     };
 );
 
+/// Opening the database and creating it if it does not exist
 pub fn open_db(path: PathBuf) -> Database<i32> {
     let mut options = Options::new();
     options.create_if_missing = true;
 
     let database = match Database::open(path.as_path(), options) {
-        Ok(db) => { return db },
+        Ok(db) => { db },
         Err(e) => { panic!("failed to open database: {:?}", e) }
     };
     return database;
 }
 
+/// Writing to the database
 pub fn write_db(database: &Database<i32>, key: i32, value: &[u8]) {
     let write_opts = WriteOptions::new();
     match database.put(write_opts, key, value) {
@@ -44,6 +47,7 @@ pub fn write_db(database: &Database<i32>, key: i32, value: &[u8]) {
     };
 }
 
+/// Reading from the database
 pub fn read_db(database: &Database<i32>, key: i32) -> Vec<u8> {
     let read_opts = ReadOptions::new();
     let res = database.get(read_opts, key);
@@ -56,10 +60,12 @@ pub fn read_db(database: &Database<i32>, key: i32) -> Vec<u8> {
     }
 }
 
+/// Getting the last value from the database
 pub fn get_last_db_value(database: &Database<i32>) -> Vec<u8> {
     return database.iter(ReadOptions::new()).last().unwrap().1;
 }
 
+/// Creating the database dir if it does not exist
 pub fn create_blockchain_dir() -> PathBuf {
     let mut path = env::current_dir().unwrap();
     path.push(".maelstrom");

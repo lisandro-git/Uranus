@@ -12,6 +12,7 @@ const XCHACHA20_POLY1305_NONCE_SIZE: usize = 24;
 const BUFFER_SIZE: usize = 8192;
 const AD: &[u8] = "Edode".as_bytes();
 
+/// Generating a random nonce for the encryption key
 fn generate_random_nonce() -> ([u8; XCHACHA20_POLY1305_NONCE_SIZE]) {
     let mut rand_generator = OsRng {};
 
@@ -20,6 +21,7 @@ fn generate_random_nonce() -> ([u8; XCHACHA20_POLY1305_NONCE_SIZE]) {
     return nonce;
 }
 
+/// Returns an encrypted message using a key
 pub fn encrypt(key: &Vec<u8>, mut data: Vec<u8>) -> Vec<u8>{
     let cipher = XChaCha20Poly1305::new(Key::from_slice(key.as_ref()));
     let random_nonce = generate_random_nonce();
@@ -33,6 +35,7 @@ pub fn encrypt(key: &Vec<u8>, mut data: Vec<u8>) -> Vec<u8>{
     return encrypted_data.to_vec();
 }
 
+/// Returns a decrypted message using a key
 pub fn decrypt(key: &Vec<u8>, data: Vec<u8>) -> Vec<u8> {
     let cipher = XChaCha20Poly1305::new(Key::from_slice(key.as_ref()));
     let mut nonce = [0u8; XCHACHA20_POLY1305_NONCE_SIZE];

@@ -7,6 +7,7 @@ use std::{
     io::{Read, Write}
 };
 
+/// Returns a new RSA Public Key
 fn read_public_key() -> Rsa<Public> {
     let mut public_key = File::open("../key_files/c2_bot_public.key").unwrap();
     let mut file_content = String::new();
@@ -15,6 +16,7 @@ fn read_public_key() -> Rsa<Public> {
     return Rsa::public_key_from_pem(&file_content.as_bytes()).unwrap();
 }
 
+/// Returns an encrypted message using the public key
 pub fn encrypt_message_rsa(serialized_data: Vec<u8>) -> Vec<u8> {
     let public_key = read_public_key();
     let mut ciphertext: Vec<u8> = vec![0; public_key.size() as usize];
@@ -23,6 +25,7 @@ pub fn encrypt_message_rsa(serialized_data: Vec<u8>) -> Vec<u8> {
     return ciphertext;
 }
 
+/// Returns a new RSA Private Key
 fn read_private_key() -> Rsa<Private> {
     let mut private_key = File::open("../key_files/c2_bot_private.key").unwrap();
     let mut file_content = String::new();
@@ -31,6 +34,7 @@ fn read_private_key() -> Rsa<Private> {
     return Rsa::private_key_from_pem(file_content.as_bytes()).unwrap();
 }
 
+/// Returns a decrypted message using the private key
 pub fn decrypt_message_rsa(data: Vec<u8>) -> Vec<u8> {
     let private_key = read_private_key();
     let mut ciphertext: Vec<u8> = vec![0; private_key.size() as usize];

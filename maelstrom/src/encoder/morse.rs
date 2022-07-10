@@ -1,3 +1,4 @@
+/// Returns a decoded version of a Morse code string.
 pub fn decode(input: Vec<u8>) -> Vec<u8> {
     let input_string = String::from_utf8(input).unwrap();
     let text = input_string.replace("*", ".").trim().to_string();
@@ -55,6 +56,7 @@ pub fn decode(input: Vec<u8>) -> Vec<u8> {
     return result.into_bytes().to_owned();
 }
 
+/// Returns a Morse code representation of the given Vec.
 pub fn encode(input: String) -> String {
     let words = input.trim().to_string();
     let text = words.chars();

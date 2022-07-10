@@ -1,10 +1,10 @@
 use std::ops::{Deref, DerefMut};
 use std::str::from_utf8;
+use leveldb::database as leveldb_database;
 use super::{
     block::{Block, Hashing},
     database
 };
-use leveldb::database as leveldb_database;
 
 #[derive(Debug)]
 pub struct Blockchain {
@@ -22,7 +22,7 @@ impl Blockchain {
     pub fn add_block(&mut self, mut Blk: Block) {
         Blk.header.prev_block_hash = Blk.calculate_hash(database::get_last_db_value(&database::D).as_slice());
         database::write_db(&database::D, Blk.header.block_id.clone() as i32, Blk.serialize_block().as_slice());
-        println!("Block : {:?} added to the blockchain", Blk.header.block_id);
+        println!("Block N°{:?} added to the blockchain", Blk.header.block_id);
     }
     pub fn get_last_block_hash(&self) -> String {
         return self.blocks.last().unwrap().clone().header.prev_block_hash;

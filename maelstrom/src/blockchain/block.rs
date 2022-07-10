@@ -16,21 +16,28 @@ use serde::{Deserialize, Serialize};
 
 const VERSION: &str = "0.1.0";
 
+/// Creating the genesis block
 pub trait Genesis {
     fn genesis_block() -> Self;
 }
 
+/// Blocks treatment
 pub trait Hashing {
     fn deserialize_block(b: &[u8]) -> Self;
     fn serialize_block(&self) -> Vec<u8>;
     fn calculate_hash<T: Hash + ?Sized>(&self, t: &T) -> String;
 }
 
+/// Block that will be appended to the blockchain
 #[derive(Debug, Serialize, Deserialize, Clone, Hash)]
 pub struct Block {
+    /// Magic number to identify the block.
     pub magic_number: u32,
+    /// The block size
     pub size: u32,
+    /// Block Header
     pub header: BlockHeader,
+    /// Block Data
     pub data: BlockData,
 }
 impl Block {
@@ -81,11 +88,16 @@ impl Hashing for Block {
     }
 }
 
+/// Block's Header
 #[derive(Debug, Serialize, Deserialize, DeepSizeOf, Clone, Hash)]
 pub struct BlockHeader {
+    /// Block version
     pub version: String,
+    /// Previous block hash
     pub prev_block_hash: String,
+    /// Current block ID (incrementing)
     pub block_id: u64,
+    /// Current block timestamp
     pub timestamp: u64,
 }
 impl BlockHeader {
@@ -112,7 +124,9 @@ impl BlockHeader {
 }
 
 #[derive(Debug, Serialize, Deserialize, DeepSizeOf, Clone, Hash)]
+/// Block's Data
 pub struct BlockData {
+    /// Bot's Device stream
     bot: c2::Device_stream,
 }
 impl BlockData {
