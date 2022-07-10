@@ -21,8 +21,9 @@ pub trait Genesis {
 }
 
 pub trait Hashing {
+    fn deserialize_block(b: &[u8]) -> Self;
     fn serialize_block(&self) -> Vec<u8>;
-    fn calculate_hash<T: Hash>(&self, t: &T) -> String;
+    fn calculate_hash<T: Hash + ?Sized>(&self, t: &T) -> String;
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Hash)]
@@ -58,11 +59,14 @@ impl Genesis for Block { // lisandro : can be merged with new()
     }
 }
 impl Hashing for Block {
+    fn deserialize_block(b: &[u8]) -> Block {
+        return bincode::deserialize(b).unwrap();
+    }
     fn serialize_block(&self) -> Vec<u8> {
         //use bincode to serialize the block
         return bincode::serialize(&self).unwrap();
     }
-    fn calculate_hash<T: Hash>(&self, previous_block: &T) -> String {
+    fn calculate_hash<T: Hash + ?Sized>(&self, previous_block: &T) -> String {
         let serialized_block = crate::message::serialization::serialize_bincode(&self);
         //let serialized_block = self.serialize_block();
         let mut hasher = Sha3_512::new();

@@ -15,19 +15,22 @@ lazy_static!(
         options.create_if_missing = true;
 
         let database = match Database::open(PathBuf::from(".maelstrom").as_path(), options) {
-            Ok(db) => { db },
+            Ok(db) => {
+                db
+            },
             Err(e) => { panic!("failed to open database: {:?}", e) }
         };
+        //println!("Previous block hash : {:?}", database.iter(ReadOptions::new()).last().unwrap().1);
         return database;
     };
 );
 
-pub fn create_db(path: PathBuf) -> Database<i32> {
+pub fn open_db(path: PathBuf) -> Database<i32> {
     let mut options = Options::new();
     options.create_if_missing = true;
 
     let database = match Database::open(path.as_path(), options) {
-        Ok(db) => { db },
+        Ok(db) => { return db },
         Err(e) => { panic!("failed to open database: {:?}", e) }
     };
     return database;

@@ -20,12 +20,9 @@ impl Blockchain {
         };
     }
     pub fn add_block(&mut self, mut Blk: Block) {
-        // edode : calculating the previous Block's hash
-        Blk.header.prev_block_hash = Blk.calculate_hash(&self.blocks.last().unwrap());
+        Blk.header.prev_block_hash = Blk.calculate_hash(database::get_last_db_value(&database::D).as_slice());
         database::write_db(&database::D, Blk.header.block_id.clone() as i32, Blk.serialize_block().as_slice());
         println!("Block : {:?} added to the blockchain", Blk.header.block_id);
-        self.blocks.push(Blk);
-        self.remove(0);
     }
     pub fn get_last_block_hash(&self) -> String {
         return self.blocks.last().unwrap().clone().header.prev_block_hash;

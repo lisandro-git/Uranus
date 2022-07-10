@@ -20,6 +20,11 @@ use std::{
         Mutex
     }
 };
+use leveldb::{
+    iterator::Iterable,
+    options::ReadOptions,
+    iterator::LevelDBIterator
+};
 use super::{
     lib,
     c2
@@ -27,9 +32,10 @@ use super::{
 use crate::{
     message as msg,
     blockchain::{
-        block::{Block, BlockData, BlockHeader, Genesis},
+        block::{Block, BlockData, BlockHeader, Genesis, Hashing},
         blockchain::Blockchain,
-    }
+        database,
+    },
 };
 
 const HQ: &str = "127.0.0.1:6969";
@@ -178,6 +184,25 @@ async fn receive_bot_data(
     Ok(())
 }
 
+fn recover_database() -> (Blockchain, Block) {
+    // edode : determining if there is data inside the database
+    let mut data: bool = false;
+    for db_data in database::D.iter(ReadOptions::new()) {
+        data = true;
+        break
+    }
+    return if data { // edode : Recovering the blockchain from the database
+        let (last_block_id, last_block_data) = database::D.iter(ReadOptions::new()).last().unwrap();
+        let Blk: Block = Hashing::deserialize_block(last_block_data.clone().as_slice());
+        let Blkchain: Blockchain = Blockchain::new(Blk.clone());
+        (Blkchain, Blk)
+    } else { // edode : Creating a new blockchain
+        let mut Blk: Block = Block::genesis_block();
+        let mut Blkchain: Blockchain = Blockchain::new(Blk.clone());
+        (Blkchain, Blk)
+    }
+}
+
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
 
@@ -191,9 +216,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let mut Co: c2::Cohort = c2::Cohort::new();
-
-    let mut Blk: Block = Block::genesis_block();
-    let mut Blkchain: Blockchain = Blockchain::new(Blk.clone());
+    let (mut Blkchain, mut Blk) = recover_database();
 
     let Blkchain_arc = Arc::new(Mutex::new(Blkchain));
     let Blk_arc = Arc::new(Mutex::new(Blk));
