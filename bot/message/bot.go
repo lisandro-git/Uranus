@@ -3,7 +3,6 @@ package message
 import (
 	"crypto/cipher"
 	"crypto/rand"
-	"fmt"
 	ccp "golang.org/x/crypto/chacha20poly1305"
 )
 
@@ -13,7 +12,6 @@ func init() {
 		panic(err)
 	}
 	Aead = GenerateAead(Key)
-	fmt.Println("Aead :", Aead)
 	B.GenerateRandomUid()
 }
 

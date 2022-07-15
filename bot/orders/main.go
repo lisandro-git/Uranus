@@ -1,7 +1,5 @@
 package orders
 
-import "bot/orders/scanner/cmd"
+func main() () {
 
-func main()() {
-	cmd.
 }

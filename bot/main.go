@@ -3,6 +3,7 @@ package main
 import (
 	cli "bot/communication/client"
 	msg "bot/message"
+	"bot/orders/scanner/cmd"
 	"net"
 	"sync"
 )
@@ -33,13 +34,14 @@ func tryConnect() {
 
 func main() {
 	// edode : Try to connect to the remote server
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		tryConnect()
-	}()
-	wg.Wait()
-
+	////wg.Add(1)
+	////go func() {
+	////	defer wg.Done()
+	////	tryConnect()
+	////}()
+	////wg.Wait()
+	var x = []string{"192.168.1.240"}
+	cmd.Execute(x)
 	// edode : Listen for incoming connections
 	/*	wg.Add(1)
 		go func() {
