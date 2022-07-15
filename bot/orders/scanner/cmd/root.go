@@ -1,15 +1,13 @@
 package cmd
 
 import (
+	"bot/orders/scanner/scan"
 	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
-
-	"bot/orders/scanner/scan"
-	log "github.com/sirupsen/logrus"
 )
 
 var debug bool
@@ -60,13 +58,10 @@ func Execute(args []string) {
 			os.Exit(1)
 		}
 
-		log.Debugf("Starting scanner...")
 		if err := scanner.Start(); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-
-		log.Debugf("Scanning target %s...", target)
 
 		results, err := scanner.Scan(ctx, ports)
 		if err != nil {

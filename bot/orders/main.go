@@ -1,5 +1,0 @@
-package orders
-
-func main() () {
-
-}

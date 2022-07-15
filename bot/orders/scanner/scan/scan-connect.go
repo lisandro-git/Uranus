@@ -27,17 +27,16 @@ type ConnectScanner struct {
 	ti          *TargetIterator
 }
 
-func NewConnectScanner(ti *TargetIterator, timeout time.Duration, paralellism int) *ConnectScanner {
+func NewConnectScanner(ti *TargetIterator, timeout time.Duration, parallelism int) *ConnectScanner {
 	return &ConnectScanner{
 		timeout:     timeout,
-		maxRoutines: paralellism,
-		jobChan:     make(chan portJob, paralellism),
+		maxRoutines: parallelism,
+		jobChan:     make(chan portJob, parallelism),
 		ti:          ti,
 	}
 }
 
 func (s *ConnectScanner) Start() error {
-
 	for i := 0; i < s.maxRoutines; i++ {
 		go func() {
 			for {
@@ -67,7 +66,6 @@ func (s *ConnectScanner) Start() error {
 			}
 		}()
 	}
-
 	return nil
 }
 
@@ -76,7 +74,6 @@ func (s *ConnectScanner) Stop() {
 }
 
 func (s *ConnectScanner) Scan(ctx context.Context, ports []int) ([]Result, error) {
-
 	wg := &sync.WaitGroup{}
 
 	resultChan := make(chan *Result)
@@ -107,9 +104,14 @@ func (s *ConnectScanner) Scan(ctx context.Context, ports []int) ([]Result, error
 		tIP := make([]byte, len(ip))
 		copy(tIP, ip)
 		go func(ip net.IP, ports []int, wg *sync.WaitGroup) {
-			r := s.scanHost(ctx, ip, ports)
-			resultChan <- &r
-			wg.Done()
+			defer wg.Done()
+			r, err := s.scanHost(ctx, ip, ports)
+			if err == nil {
+				fmt.Println("\t\tData found for : ", ip)
+				resultChan <- &r
+			} else {
+				fmt.Println("\t\tData not found for : ", ip)
+			}
 		}(tIP, ports, wg)
 
 		_ = ip
@@ -123,7 +125,7 @@ func (s *ConnectScanner) Scan(ctx context.Context, ports []int) ([]Result, error
 	return results, nil
 }
 
-func (s *ConnectScanner) scanHost(ctx context.Context, host net.IP, ports []int) Result {
+func (s *ConnectScanner) scanHost(ctx context.Context, host net.IP, ports []int) (Result, error) {
 
 	wg := &sync.WaitGroup{}
 
@@ -187,8 +189,10 @@ func (s *ConnectScanner) scanHost(ctx context.Context, host net.IP, ports []int)
 	wg.Wait()
 	close(openChan)
 	<-doneChan
-
-	return result
+	if result.Latency < 0 {
+		return result, fmt.Errorf("Scanning host %s took too long", host)
+	}
+	return result, nil
 }
 
 func (s *ConnectScanner) scanPort(target net.IP, port int) (PortState, error) {
