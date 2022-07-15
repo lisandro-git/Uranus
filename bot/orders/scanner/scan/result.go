@@ -37,6 +37,8 @@ func (r Result) String() string {
 
 	if r.IsHostUp() {
 		text = fmt.Sprintf("%s\tHost is up with %s latency\n", text, r.Latency.String())
+	} else {
+		text = fmt.Sprintf("%s\t%s\n", text, "Host is down")
 	}
 
 	if len(r.Open) > 0 {
@@ -55,7 +57,6 @@ func (r Result) String() string {
 			text,
 			pad(fmt.Sprintf("%d/tcp", port), 10),
 			pad("OPEN", 10),
-			DescribePort(port),
 		)
 	}
 
