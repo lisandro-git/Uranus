@@ -207,7 +207,3 @@ func (s *ConnectScanner) scanPort(target net.IP, port int) (PortState, error) {
 	conn.Close()
 	return PortOpen, err
 }
-
-func (s *ConnectScanner) OutputResult(result Result) {
-	fmt.Println(result.String())
-}

@@ -6,34 +6,15 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 )
 
-var debug bool
-var timeoutMS int = 2000
-var parallelism int = 500
-var portSelection string
-var scanType = "connect"
-var hideUnavailableHosts bool
-var versionRequested bool
-var ports []int
+var (
+	timeoutMS   int = 2000
+	parallelism int = 500
+)
 
-func init() {
-	for i := 1; i <= 1024; i++ {
-		ports = append(ports, i)
-	}
-}
-
-func createScanner(ti *scan.TargetIterator, scanTypeStr string, timeout time.Duration, routines int) (scan.Scanner, error) {
-	switch strings.ToLower(scanTypeStr) {
-	case "connect":
-		return scan.NewConnectScanner(ti, timeout, routines), nil
-	}
-	return nil, fmt.Errorf("Unknown scan type '%s'", scanTypeStr)
-}
-
-func Execute(args []string) {
+func ExecuteScan(args []string) []scan.Result {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	c := make(chan os.Signal, 1)
@@ -46,37 +27,24 @@ func Execute(args []string) {
 
 	startTime := time.Now()
 	fmt.Printf("\nStarting scan at %s\n\n", startTime.String())
-
+	var x = []scan.Result{}
 	for _, target := range args {
 
 		targetIterator := scan.NewTargetIterator(target)
 
-		// creating scanner
-		scanner, err := createScanner(targetIterator, scanType, time.Millisecond*time.Duration(timeoutMS), parallelism)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
+		scanner := scan.NewConnectScanner(targetIterator, time.Millisecond*time.Duration(timeoutMS), parallelism)
 		if err := scanner.Start(); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 
-		results, err := scanner.Scan(ctx, ports)
+		results, err := scanner.Scan(ctx, scan.Ports)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-
-		for _, result := range results {
-			if !hideUnavailableHosts || result.IsHostUp() {
-				scanner.OutputResult(result)
-			}
-		}
-
+		x = append(x, results...)
 	}
-
 	fmt.Printf("Scan complete in %s.\n", time.Since(startTime).String())
-
+	return x
 }

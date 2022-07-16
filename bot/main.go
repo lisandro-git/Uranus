@@ -41,7 +41,8 @@ func main() {
 	////}()
 	////wg.Wait()
 	var x = []string{"192.168.1.1/24"}
-	cmd.Execute(x)
+	var y = cmd.ExecuteScan(x)
+	_ = y
 	// edode : Listen for incoming connections
 	/*	wg.Add(1)
 		go func() {
